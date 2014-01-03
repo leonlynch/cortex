@@ -14,9 +14,9 @@
 
 __BEGIN_DECLS
 
-void scene_init(void);
+int scene_init(void);
 
-void scene_load_resources(void);
+int scene_load_resources(void);
 
 void scene_unload_resources(void);
 

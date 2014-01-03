@@ -17,6 +17,8 @@
 
 int main(int argc, char** argv)
 {
+	int r;
+
 	QGuiApplication app(argc, argv);
 
 	QSurfaceFormat format;
@@ -33,14 +35,17 @@ int main(int argc, char** argv)
 	window.show();
 
 	window.context->makeCurrent(&window);
-	scene_init();
-	scene_load_resources();
+	r = scene_init();
+	if (r)
+		return 1;
+	r = scene_load_resources();
+	if (r)
+		return 1;
 
 	QTimer timer;
 	QObject::connect(&timer, SIGNAL(timeout()), &window, SLOT(render()));
     timer.start(16);
 
-	int r;
 	r = app.exec();
 
 	scene_unload_resources();

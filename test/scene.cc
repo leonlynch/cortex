@@ -12,6 +12,11 @@
 #include <cstdio>
 #include <cstring>
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <errno.h>
+
 #include <GL/glew.h>
 
 #include <glm/glm.hpp>
@@ -33,64 +38,40 @@ static GLuint color_attribute_index = 1;
 static GLuint mvp_location = 0;
 static GLuint vao = 0;
 
-static const char vertex_shader_source[] = "                                \n\
-#version 130                                                                \n\
-                                                                            \n\
-uniform mat4 mvp;                                                           \n\
-                                                                            \n\
-in vec3 v_position;                                                         \n\
-in vec4 v_color;                                                            \n\
-out vec4 f_color;                                                           \n\
-                                                                            \n\
-void main()                                                                 \n\
-{                                                                           \n\
-	gl_Position = mvp * vec4(v_position, 1.0);                              \n\
-	f_color = v_color;                                                      \n\
-}                                                                           \n\
-";
-
-static const char fragment_shader_source[] = "                              \n\
-#version 130                                                                \n\
-                                                                            \n\
-in vec4 f_color;                                                            \n\
-out vec4 color;                                                             \n\
-                                                                            \n\
-void main()                                                                 \n\
-{                                                                           \n\
-	color = f_color;                                                        \n\
-}                                                                           \n\
-";
-
 struct vertex_t {
-	GLfloat position[3];
+	GLfloat position[4];
 	GLfloat color[4];
 };
 
 static struct vertex_t vertex_data[] = {
-	{ { -0.6f, -0.4f, 0.0f }, { 1.0f, 0.0f, 0.0f } },
-	{ {  0.6f, -0.4f, 0.0f }, { 0.0f, 1.0f, 0.0f } },
-	{ {  0.0f,  0.6f, 0.0f }, { 0.0f, 0.0f, 1.0f } },
+	{ { -0.6f, -0.4f, 0.0f, 1.0 }, { 1.0f, 0.0f, 0.0f } },
+	{ {  0.6f, -0.4f, 0.0f, 1.0 }, { 0.0f, 1.0f, 0.0f } },
+	{ {  0.0f,  0.6f, 0.0f, 1.0 }, { 0.0f, 0.0f, 1.0f } },
 };
 
-void scene_init(void)
+int scene_init(void)
 {
 	if (ready)
-		return;
+		return 0;
 
 	const GLubyte* version;
 	version = glGetString(GL_VERSION);
 	if (!version) {
 		fprintf(stderr, "GL version not available\n");
-		return;
+		return -1;
 	} else {
 		printf("%s\n", version);
 	}
 
 	GLenum res = glewInit();
-	if (res != GLEW_OK)
+	if (res != GLEW_OK) {
 		fprintf(stderr, "glewInit(): '%s'\n", glewGetErrorString(res));
+		return -1;
+	}
 
 	ready = true;
+
+	return 0;
 }
 
 void scene_resize(int _width, int _height)
@@ -101,33 +82,89 @@ void scene_resize(int _width, int _height)
 	height = _height;
 }
 
-static GLuint scene_load_shader(const char* source, GLenum shader_type)
+static const char* scene_read_shader(const std::string& filename)
 {
+	int r;
+	struct stat st;
+	FILE* f;
+
+	r = stat(filename.c_str(), &st);
+	if (r < 0) {
+		fprintf(stderr, "%s: %s\n", filename.c_str(), strerror(errno));
+		return NULL;
+	}
+
+	f = fopen(filename.c_str(), "r");
+	if (!f) {
+		fprintf(stderr, "%s: %s\n", filename.c_str(), strerror(errno));
+		return NULL;
+	}
+
+	char* buf = new char[st.st_size + 1];
+
+	r = fread(buf, st.st_size, 1, f);
+	if (r != 1) {
+		fprintf(stderr, "Failed to read %s\n", filename.c_str());
+		return NULL;
+	}
+	buf[st.st_size] = 0;
+
+	fclose(f);
+
+	return buf;
+}
+
+static GLuint scene_load_shader(const std::string filename, GLenum shader_type)
+{
+	const char* source;
 	GLuint shader;
 	GLint source_len;
+	GLint info_log_len = 0;
 	GLint compile_status;
+
+	source = scene_read_shader(filename);
+	if (!source)
+		goto error;
 
 	shader = glCreateShader(shader_type);
 	if (!shader) {
 		fprintf(stderr, "glCreateShader() failed\n");
-		return 0;
+		goto error;
 	}
 
-	source_len = strlen(source);
+	source_len = std::strlen(source);
 	glShaderSource(shader, 1, &source, &source_len);
 	glCompileShader(shader);
+
+	// retrieve shader log
+	glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &info_log_len);
+	GLchar info_log[info_log_len];
+	glGetShaderInfoLog(shader, sizeof(info_log), NULL, info_log);
+
+	// check shader compile status
 	glGetShaderiv(shader, GL_COMPILE_STATUS, &compile_status);
 	if (compile_status != GL_TRUE) {
-		GLint info_log_len = 0;
-		glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &info_log_len);
-		GLchar info_log[info_log_len];
-		glGetShaderInfoLog(shader, sizeof(info_log), NULL, info_log);
-		fprintf(stderr, "Error compiling shader: %s\n", info_log);
+		fprintf(stderr, "Failed to compile shader:\n");
+
+		GLint shader_source_len;
+		glGetShaderiv(shader, GL_SHADER_SOURCE_LENGTH, &shader_source_len);
+		GLchar shader_source[shader_source_len];
+		glGetShaderSource(shader, sizeof(shader_source), NULL, shader_source);
+		fprintf(stderr, "%s\n", shader_source);
+
+		fprintf(stderr, "%s: %s\n", filename.c_str(), info_log);
+
 		glDeleteShader(shader);
-		return 0;
+		goto error;
+	} else if (info_log_len > 1) {
+		fprintf(stderr, "%s: %s\n", filename.c_str(), info_log);
 	}
 
 	return shader;
+
+error:
+	delete[] source;
+	return 0;
 }
 
 static GLuint scene_load_vao(const void* buf, size_t len)
@@ -154,24 +191,24 @@ static GLuint scene_load_vao(const void* buf, size_t len)
 	return vao;
 }
 
-void scene_load_resources(void)
+int scene_load_resources(void)
 {
 	program = glCreateProgram();
 	if (!program) {
 		fprintf(stderr, "glCreateProgram() failed\n");
-		return;
+		return -1;
 	}
 
-	vertex_shader = scene_load_shader(vertex_shader_source, GL_VERTEX_SHADER);
+	vertex_shader = scene_load_shader("test/simple_vs.glsl", GL_VERTEX_SHADER);
 	if (!vertex_shader) {
 		fprintf(stderr, "Failed to load vertex shader\n");
-		return;
+		return -1;
 	}
 
-	fragment_shader = scene_load_shader(fragment_shader_source, GL_FRAGMENT_SHADER);
+	fragment_shader = scene_load_shader("test/simple_fs.glsl", GL_FRAGMENT_SHADER);
 	if (!fragment_shader) {
 		fprintf(stderr, "Failed to load fragment shader\n");
-		return;
+		return -1;
 	}
 
 	// add shaders to program
@@ -179,8 +216,8 @@ void scene_load_resources(void)
 	glAttachShader(program, fragment_shader);
 
 	// assign attributes
- 	glBindAttribLocation(program, position_attribute_index, "v_position");
- 	glBindAttribLocation(program, color_attribute_index, "v_color");
+	glBindAttribLocation(program, position_attribute_index, "position");
+	glBindAttribLocation(program, color_attribute_index, "color");
 
 	// link program
 	GLint link_status;
@@ -192,7 +229,7 @@ void scene_load_resources(void)
 		GLchar info_log[info_log_len];
 		glGetProgramInfoLog(program, sizeof(info_log), NULL, info_log);
 		fprintf(stderr, "Error linking program: %s\n", info_log);
-		return;
+		return -1;
 	}
 
 	// validate program
@@ -205,13 +242,15 @@ void scene_load_resources(void)
 		GLchar info_log[info_log_len];
 		glGetProgramInfoLog(program, sizeof(info_log), NULL, info_log);
 		fprintf(stderr, "Invalid program: %s\n", info_log);
-		return;
+		return -1;
 	}
 
 	glUseProgram(program);
 	mvp_location = glGetUniformLocation(program, "mvp");
 
 	vao = scene_load_vao(vertex_data, sizeof(vertex_data));
+
+	return 0;
 }
 
 void scene_unload_resources(void)

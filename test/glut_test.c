@@ -24,6 +24,8 @@ static void display_func(void)
 
 int main(int argc, char** argv)
 {
+	int r;
+
 	glutInit(&argc, argv);
 // 	glutInitContextVersion(3, 2);
 // 	glutInitContextProfile(GLUT_CORE_PROFILE);
@@ -36,8 +38,12 @@ int main(int argc, char** argv)
 	glutDisplayFunc(&display_func);
 	glutIdleFunc(&display_func);
 
-	scene_init();
-	scene_load_resources();
+	r = scene_init();
+	if (r)
+		return 1;
+	r = scene_load_resources();
+	if (r)
+		return 1;
 
 	glutMainLoop();
 

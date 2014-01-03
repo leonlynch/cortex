@@ -65,8 +65,12 @@ int main(int argc, char** argv)
 	int width, height;
 	glfwGetFramebufferSize(window, &width, &height);
 
-	scene_init();
-	scene_load_resources();
+	r = scene_init();
+	if (r)
+		goto exit3;
+	r = scene_load_resources();
+	if (r)
+		goto exit3;
 	scene_resize(width, height);
 
 	while (!glfwWindowShouldClose(window))
@@ -81,6 +85,7 @@ int main(int argc, char** argv)
 
 	r = 0;
 
+exit3:
 	glfwDestroyWindow(window);
 exit2:
 	glfwTerminate();
