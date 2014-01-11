@@ -21,7 +21,7 @@ class OpenGLWindow : public QWindow
 	Q_OBJECT
 
 public:
-	explicit OpenGLWindow(QWindow* parent = 0);
+	explicit OpenGLWindow(const QSurfaceFormat& format, QWindow* parent = 0);
 	virtual ~OpenGLWindow();
 
 	void init(void (*resize_func)(int width, int height), void (*render_func)());

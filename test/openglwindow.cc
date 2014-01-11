@@ -13,10 +13,11 @@
 #include <QtGui/QResizeEvent>
 #include <QtGui/QOpenGLFunctions>
 
-OpenGLWindow::OpenGLWindow(QWindow* parent)
+OpenGLWindow::OpenGLWindow(const QSurfaceFormat& format, QWindow* parent)
 : QWindow(parent)
 {
 	setSurfaceType(QSurface::OpenGLSurface);
+	setFormat(format);
 }
 
 OpenGLWindow::~OpenGLWindow()

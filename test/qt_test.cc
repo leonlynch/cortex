@@ -27,9 +27,9 @@ int main(int argc, char** argv)
 // 	format.setMinorVersion(2);
 // 	format.setProfile(QSurfaceFormat::CoreProfile);
 	format.setSwapBehavior(QSurfaceFormat::DoubleBuffer);
+	format.setDepthBufferSize(32);
 
-	OpenGLWindow window;
-	window.setFormat(format);
+	OpenGLWindow window(format);
 	window.resize(640, 480);
 	window.init(&scene_resize, &scene_render);
 	window.show();

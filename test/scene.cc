@@ -71,6 +71,10 @@ int scene_init(void)
 
 	ready = true;
 
+	// depth testing
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+
 	return 0;
 }
 
@@ -268,6 +272,7 @@ void scene_unload_resources(void)
 void scene_render(void)
 {
 	glClear(GL_COLOR_BUFFER_BIT);
+	glClear(GL_DEPTH_BUFFER_BIT);
 
 	glViewport(0, 0, width, height);
 
