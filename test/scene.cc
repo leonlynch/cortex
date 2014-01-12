@@ -12,6 +12,9 @@
 #include <cstdio>
 #include <cstring>
 
+#include <string>
+#include <map>
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -21,6 +24,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/string_cast.hpp>
 
@@ -34,19 +38,50 @@ static GLuint program = 0;
 static GLuint vertex_shader = 0;
 static GLuint fragment_shader = 0;
 static GLuint position_attribute_index = 0;
-static GLuint color_attribute_index = 1;
-static GLuint mvp_location = 0;
+static GLuint normal_attribute_index = 1;
 static GLuint vao = 0;
 
+// uniform location map
+typedef std::map<std::string, GLint> uniform_location_t;
+static uniform_location_t uniform_location;
+static GLint uniform_count = 0;
+static GLint uniform_max_length = 0;
+
 struct vertex_t {
-	GLfloat position[4];
-	GLfloat color[4];
+	GLfloat position[3];
+	GLfloat normal[3];
 };
 
 static struct vertex_t vertex_data[] = {
-	{ { -0.6f, -0.4f, 0.0f, 1.0 }, { 1.0f, 0.0f, 0.0f } },
-	{ {  0.6f, -0.4f, 0.0f, 1.0 }, { 0.0f, 1.0f, 0.0f } },
-	{ {  0.0f,  0.6f, 0.0f, 1.0 }, { 0.0f, 0.0f, 1.0f } },
+	{ {  1.0f,  1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f } },
+	{ { -1.0f,  1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f } },
+	{ { -1.0f, -1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f } },
+	{ {  1.0f, -1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f } },
+
+	{ { -1.0f,  1.0f, -1.0f }, {  0.0f,  0.0f, -1.0f } },
+	{ {  1.0f,  1.0f, -1.0f }, {  0.0f,  0.0f, -1.0f } },
+	{ {  1.0f, -1.0f, -1.0f }, {  0.0f,  0.0f, -1.0f } },
+	{ { -1.0f, -1.0f, -1.0f }, {  0.0f,  0.0f, -1.0f } },
+
+	{ {  1.0f,  1.0f, -1.0f }, {  1.0f,  0.0f,  0.0f } },
+	{ {  1.0f,  1.0f,  1.0f }, {  1.0f,  0.0f,  0.0f } },
+	{ {  1.0f, -1.0f,  1.0f }, {  1.0f,  0.0f,  0.0f } },
+	{ {  1.0f, -1.0f, -1.0f }, {  1.0f,  0.0f,  0.0f } },
+
+	{ { -1.0f,  1.0f,  1.0f }, { -1.0f,  0.0f,  0.0f } },
+	{ { -1.0f,  1.0f, -1.0f }, { -1.0f,  0.0f,  0.0f } },
+	{ { -1.0f, -1.0f, -1.0f }, { -1.0f,  0.0f,  0.0f } },
+	{ { -1.0f, -1.0f,  1.0f }, { -1.0f,  0.0f,  0.0f } },
+
+	{ {  1.0f,  1.0f, -1.0f }, {  0.0f,  1.0f,  0.0f } },
+	{ { -1.0f,  1.0f, -1.0f }, {  0.0f,  1.0f,  0.0f } },
+	{ { -1.0f,  1.0f,  1.0f }, {  0.0f,  1.0f,  0.0f } },
+	{ {  1.0f,  1.0f,  1.0f }, {  0.0f,  1.0f,  0.0f } },
+
+	{ {  1.0f, -1.0f,  1.0f }, {  0.0f, -1.0f,  0.0f } },
+	{ { -1.0f, -1.0f,  1.0f }, {  0.0f, -1.0f,  0.0f } },
+	{ { -1.0f, -1.0f, -1.0f }, {  0.0f, -1.0f,  0.0f } },
+	{ {  1.0f, -1.0f, -1.0f }, {  0.0f, -1.0f,  0.0f } },
 };
 
 int scene_init(void)
@@ -74,6 +109,10 @@ int scene_init(void)
 	// depth testing
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
+
+	// back face culling
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
 
 	return 0;
 }
@@ -185,8 +224,8 @@ static GLuint scene_load_vao(const void* buf, size_t len)
 
 	glEnableVertexAttribArray(position_attribute_index);
 	glVertexAttribPointer(position_attribute_index, 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex_t), 0);
-	glEnableVertexAttribArray(color_attribute_index);
-	glVertexAttribPointer(color_attribute_index, 4, GL_FLOAT, GL_FALSE, sizeof(struct vertex_t), (const GLvoid*)offsetof(struct vertex_t, color));
+	glEnableVertexAttribArray(normal_attribute_index);
+	glVertexAttribPointer(normal_attribute_index, 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex_t), (const GLvoid*)offsetof(struct vertex_t, normal));
 
 	glBindVertexArray(0);
 
@@ -221,7 +260,7 @@ int scene_load_resources(void)
 
 	// assign attributes
 	glBindAttribLocation(program, position_attribute_index, "position");
-	glBindAttribLocation(program, color_attribute_index, "color");
+	glBindAttribLocation(program, normal_attribute_index, "normal");
 
 	// link program
 	GLint link_status;
@@ -249,8 +288,17 @@ int scene_load_resources(void)
 		return -1;
 	}
 
-	glUseProgram(program);
-	mvp_location = glGetUniformLocation(program, "mvp");
+	// lookup all uniforms
+	glGetProgramiv(program, GL_ACTIVE_UNIFORMS, &uniform_count);
+	glGetProgramiv(program, GL_ACTIVE_UNIFORM_MAX_LENGTH, &uniform_max_length);
+	for (int i = 0; i < uniform_count; ++i) {
+		GLchar uniform_name[uniform_max_length];
+		GLint uniform_size = 0;
+		GLenum uniform_type = 0;
+		glGetActiveUniform(program, i, sizeof(uniform_name), NULL, &uniform_size, &uniform_type, uniform_name);
+		uniform_location[uniform_name] = glGetUniformLocation(program, uniform_name);
+		printf("%s(); uniform='%s'; size=%d; type=%d; location=%d\n", __FUNCTION__, uniform_name, uniform_size, uniform_type, uniform_location[uniform_name]);
+	}
 
 	vao = scene_load_vao(vertex_data, sizeof(vertex_data));
 
@@ -275,18 +323,50 @@ void scene_render(void)
 	glClear(GL_DEPTH_BUFFER_BIT);
 
 	glViewport(0, 0, width, height);
-
-	glm::mat4 projection = glm::perspective(45.0f, 4.0f / 3.0f, 0.1f, 100.0f);
-	glm::mat4 view = glm::translate(glm::mat4(), glm::vec3(0.0f, 0.0f, -2.0f));
-	glm::mat4 model = glm::rotate(glm::mat4(), (float)frame_count, glm::vec3(0.f, 0.f, 1.0f));
-	glm::mat4 mvp = projection * view * model;
-
 	glUseProgram(program);
 	glBindVertexArray(vao);
-	glUniformMatrix4fv(mvp_location, 1, GL_FALSE, glm::value_ptr(mvp));
 
-	glDrawArrays(GL_TRIANGLES, 0, 3);
+	// uniform matrices
+	glm::mat4 m_projection = glm::perspective(45.0f, 4.0f / 3.0f, 0.1f, 100.0f);
+	glm::mat4 m_view = glm::translate(glm::mat4(), glm::vec3(0.0f, 0.0f, -5.0f));
+	glm::mat4 m_model_rotate_x = glm::rotate(glm::mat4(), (float)frame_count, glm::vec3(1.0f, 0.0f, 0.0f));
+	glm::mat4 m_model_rotate_y = glm::rotate(glm::mat4(), (float)frame_count, glm::vec3(0.0f, 1.0f, 0.0f));
+	glm::mat4 m_model_rotate_z = glm::rotate(glm::mat4(), (float)frame_count / 2.0f, glm::vec3(0.0f, 0.0f, 1.0f));
+	glm::mat4 m_model = m_model_rotate_z * m_model_rotate_y * m_model_rotate_x;
+	glm::mat4 m_modelview = m_view * m_model;
+	glm::mat4 m_mvp = m_projection * m_modelview;
+	glm::mat3 m_normal = glm::inverseTranspose(glm::mat3(m_modelview));
 
+	glUniformMatrix4fv(uniform_location["m_mvp"], 1, GL_FALSE, glm::value_ptr(m_mvp));
+	glUniformMatrix4fv(uniform_location["m_modelview"], 1, GL_FALSE, glm::value_ptr(m_modelview));
+	glUniformMatrix3fv(uniform_location["m_normal"], 1, GL_FALSE, glm::value_ptr(m_normal));
+
+	// uniform light parameters
+	glm::vec4 light_position = glm::vec4(10.0f, 10.0f, 10.0f, 1.0f);
+	glm::vec3 light_ambient = glm::vec3(0.2f, 0.2f, 0.2f);
+	glm::vec3 light_diffuse = glm::vec3(0.8f, 0.8f, 0.8f);
+	glm::vec3 light_specular = glm::vec3(1.0f, 1.0f, 1.0f);
+
+	glUniform4fv(uniform_location["light.position"], 1, glm::value_ptr(light_position));
+	glUniform3fv(uniform_location["light.ambient"], 1, glm::value_ptr(light_ambient));
+	glUniform3fv(uniform_location["light.diffuse"], 1, glm::value_ptr(light_diffuse));
+	glUniform3fv(uniform_location["light.specular"], 1, glm::value_ptr(light_specular));
+
+	// uniform material parameters
+	glm::vec3 material_ambient = glm::vec3(0.2f, 0.2f, 0.2f);
+	glm::vec3 material_diffuse = glm::vec3(0.8f, 0.0f, 0.0f);
+	glm::vec3 material_specular = glm::vec3(1.0f, 1.0f, 1.0f);
+	float material_shininess = 25;
+
+	glUniform3fv(uniform_location["material.ambient"], 1, glm::value_ptr(material_ambient));
+	glUniform3fv(uniform_location["material.diffuse"], 1, glm::value_ptr(material_diffuse));
+	glUniform3fv(uniform_location["material.specular"], 1, glm::value_ptr(material_specular));
+	glUniform1f(uniform_location["material.shininess"], material_shininess);
+
+	// render
+	glDrawArrays(GL_QUADS, 0, sizeof(vertex_data) / sizeof(vertex_data[0]));
+
+	// cleanup
 	glBindVertexArray(0);
 	glUseProgram(0);
 

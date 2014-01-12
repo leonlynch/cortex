@@ -9,14 +9,40 @@
 
 #version 130
 
-uniform mat4 mvp;
+uniform mat4 m_mvp;
+uniform mat4 m_modelview;
+uniform mat3 m_normal;
 
-in vec4 position;
-in vec4 color;
-out vec4 v_color;
+struct light_t {
+	vec4 position;
+	vec3 ambient;
+	vec3 diffuse;
+	vec3 specular;
+};
+uniform light_t light;
+
+struct material_t {
+	vec3 ambient;
+	vec3 diffuse;
+	vec3 specular;
+	float shininess;
+};
+uniform material_t material;
+
+in vec3 v_position;
+in vec3 v_normal;
+
+out vec3 f_n;
+out vec3 f_l;
+out vec3 f_v;
 
 void main()
 {
-	gl_Position = mvp * position;
-	v_color = color;
+	// compute eye space vectors
+	vec4 position = m_modelview * vec4(v_position, 1.0);
+	f_n = m_normal * v_normal; // normal vector
+	f_l = vec3(light.position - position); // light vector
+	f_v = vec3(-position); // viewer vector
+
+	gl_Position = m_mvp * vec4(v_position, 1.0);
 }
