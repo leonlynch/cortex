@@ -353,7 +353,7 @@ void scene_render(void)
 	glUniform3fv(uniform_location["light.specular"], 1, glm::value_ptr(light_specular));
 
 	// uniform material parameters
-	glm::vec3 material_ambient = glm::vec3(0.2f, 0.2f, 0.2f);
+	glm::vec3 material_ambient = glm::vec3(0.2f, 0.0f, 0.0f);
 	glm::vec3 material_diffuse = glm::vec3(0.8f, 0.0f, 0.0f);
 	glm::vec3 material_specular = glm::vec3(1.0f, 1.0f, 1.0f);
 	float material_shininess = 25;
