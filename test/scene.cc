@@ -84,6 +84,26 @@ static struct vertex_t vertex_data[] = {
 	{ {  1.0f, -1.0f, -1.0f }, {  0.0f, -1.0f,  0.0f } },
 };
 
+static GLuint index_data[] = {
+	0, 1, 3,
+	2, 3, 1,
+
+	4, 5, 7,
+	6, 7, 5,
+
+	8, 9, 11,
+	10, 11, 9,
+
+	12, 13, 15,
+	14, 15, 13,
+
+	16, 17, 19,
+	18, 19, 17,
+
+	20, 21, 23,
+	22, 23, 21,
+};
+
 int scene_init(void)
 {
 	if (ready)
@@ -210,26 +230,31 @@ error:
 	return 0;
 }
 
-static GLuint scene_load_vao(const void* buf, size_t len)
+static GLuint scene_load_vao(const void* vertex_data, size_t vertex_data_len, const void* index_data, size_t index_data_len)
 {
 	GLuint vao;
 	GLuint vbo;
+	GLuint ibo;
 
 	glGenVertexArrays(1, &vao);
 	glBindVertexArray(vao);
 
 	glGenBuffers(1, &vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	glBufferData(GL_ARRAY_BUFFER, len, buf, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, vertex_data_len, vertex_data, GL_STATIC_DRAW);
 
 	glEnableVertexAttribArray(position_attribute_index);
 	glVertexAttribPointer(position_attribute_index, 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex_t), 0);
 	glEnableVertexAttribArray(normal_attribute_index);
 	glVertexAttribPointer(normal_attribute_index, 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex_t), (const GLvoid*)offsetof(struct vertex_t, normal));
 
+	glGenBuffers(1, &ibo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, index_data_len, index_data, GL_STATIC_DRAW);
+
 	glBindVertexArray(0);
 
-	printf("%s(); buf=%p; len=%zu; vao=%u; vbo=%u\n", __FUNCTION__, buf, len, vao, vbo);
+	printf("%s(); vao=%u; vbo=%u; ibo=%u\n", __FUNCTION__, vao, vbo, ibo);
 
 	return vao;
 }
@@ -300,7 +325,7 @@ int scene_load_resources(void)
 		printf("%s(); uniform='%s'; size=%d; type=%d; location=%d\n", __FUNCTION__, uniform_name, uniform_size, uniform_type, uniform_location[uniform_name]);
 	}
 
-	vao = scene_load_vao(vertex_data, sizeof(vertex_data));
+	vao = scene_load_vao(vertex_data, sizeof(vertex_data), index_data, sizeof(index_data));
 
 	return 0;
 }
@@ -324,7 +349,6 @@ void scene_render(void)
 
 	glViewport(0, 0, width, height);
 	glUseProgram(program);
-	glBindVertexArray(vao);
 
 	// uniform matrices
 	glm::mat4 m_projection = glm::perspective(45.0f, 4.0f / 3.0f, 0.1f, 100.0f);
@@ -364,7 +388,8 @@ void scene_render(void)
 	glUniform1f(uniform_location["material.shininess"], material_shininess);
 
 	// render
-	glDrawArrays(GL_QUADS, 0, sizeof(vertex_data) / sizeof(vertex_data[0]));
+	glBindVertexArray(vao);
+	glDrawElements(GL_TRIANGLES, sizeof(index_data) / sizeof(index_data[0]), GL_UNSIGNED_INT, 0);
 
 	// cleanup
 	glBindVertexArray(0);
