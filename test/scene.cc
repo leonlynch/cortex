@@ -351,7 +351,7 @@ void scene_render(void)
 	glUseProgram(program);
 
 	// uniform matrices
-	glm::mat4 m_projection = glm::perspective(45.0f, 4.0f / 3.0f, 0.1f, 100.0f);
+	glm::mat4 m_projection = glm::perspective(45.0f, width / (float)height, 0.1f, 100.0f);
 	glm::mat4 m_view = glm::translate(glm::mat4(), glm::vec3(0.0f, 0.0f, -5.0f));
 	glm::mat4 m_model_rotate_x = glm::rotate(glm::mat4(), (float)frame_count, glm::vec3(1.0f, 0.0f, 0.0f));
 	glm::mat4 m_model_rotate_y = glm::rotate(glm::mat4(), (float)frame_count, glm::vec3(0.0f, 1.0f, 0.0f));
