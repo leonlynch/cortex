@@ -145,7 +145,7 @@ void scene_resize(int _width, int _height)
 	height = _height;
 }
 
-static const char* scene_read_shader(const std::string& filename)
+static int scene_read_shader(const std::string& filename, std::string& source)
 {
 	int r;
 	struct stat st;
@@ -154,39 +154,46 @@ static const char* scene_read_shader(const std::string& filename)
 	r = stat(filename.c_str(), &st);
 	if (r < 0) {
 		fprintf(stderr, "%s: %s\n", filename.c_str(), strerror(errno));
-		return NULL;
+		return -1;
 	}
 
 	f = fopen(filename.c_str(), "r");
 	if (!f) {
 		fprintf(stderr, "%s: %s\n", filename.c_str(), strerror(errno));
-		return NULL;
+		return -1;
 	}
 
-	char* buf = new char[st.st_size + 1];
+	char buf[st.st_size + 1];
 
 	r = fread(buf, st.st_size, 1, f);
 	if (r != 1) {
 		fprintf(stderr, "Failed to read %s\n", filename.c_str());
-		return NULL;
+		goto error;
 	}
 	buf[st.st_size] = 0;
+	source = buf;
 
+	r = 0;
+	goto exit;
+
+error:
+	r = -1;
+exit:
 	fclose(f);
-
-	return buf;
+	return r;
 }
 
-static GLuint scene_load_shader(const std::string filename, GLenum shader_type)
+static GLuint scene_load_shader(const std::string& filename, GLenum shader_type)
 {
-	const char* source;
+	int r;
+	std::string source;
 	GLuint shader;
-	GLint source_len;
+	const char* source_ptr;
 	GLint info_log_len = 0;
 	GLint compile_status;
 
-	source = scene_read_shader(filename);
-	if (!source)
+	r = scene_read_shader(filename, source);
+	if (r)
 		goto error;
 
 	shader = glCreateShader(shader_type);
@@ -195,11 +202,12 @@ static GLuint scene_load_shader(const std::string filename, GLenum shader_type)
 		goto error;
 	}
 
-	source_len = std::strlen(source);
-	glShaderSource(shader, 1, &source, &source_len);
+	// compile shader
+	source_ptr = source.c_str();
+	glShaderSource(shader, 1, &source_ptr, NULL);
 	glCompileShader(shader);
 
-	// retrieve shader log
+	// retrieve shader info log
 	glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &info_log_len);
 	GLchar info_log[info_log_len];
 	glGetShaderInfoLog(shader, sizeof(info_log), NULL, info_log);
@@ -218,16 +226,19 @@ static GLuint scene_load_shader(const std::string filename, GLenum shader_type)
 		fprintf(stderr, "%s: %s\n", filename.c_str(), info_log);
 
 		glDeleteShader(shader);
-		goto error;
+		goto error2;
 	} else if (info_log_len > 1) {
 		fprintf(stderr, "%s: %s\n", filename.c_str(), info_log);
 	}
 
-	return shader;
+	goto exit;
 
+error2:
+	glDeleteShader(shader);
 error:
-	delete[] source;
-	return 0;
+	shader = 0;
+exit:
+	return shader;
 }
 
 static GLuint scene_load_vao(const void* vertex_data, size_t vertex_data_len, const void* index_data, size_t index_data_len)
