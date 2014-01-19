@@ -20,24 +20,29 @@ class OpenGLWindow : public QWindow
 {
 	Q_OBJECT
 
-public:
-	explicit OpenGLWindow(const QSurfaceFormat& format, QWindow* parent = 0);
-	virtual ~OpenGLWindow();
-
-	void init(void (*resize_func)(int width, int height), void (*render_func)());
-	void makeContextCurrent();
-
-protected:
-	virtual void resizeEvent(QResizeEvent*);
-
-public slots:
-	void render();
-
-public:
+private:
 	QOpenGLContext* context;
-
 	void (*resize_func)(int width, int height);
 	void (*render_func)();
+	void (*update_func)();
+
+public:
+	OpenGLWindow(
+		void (*resize_func)(int width, int height),
+		void (*render_func)(),
+		void (*update_func)(),
+		QWindow* parent = 0
+	);
+	virtual ~OpenGLWindow();
+
+	bool makeContextCurrent();
+
+protected:
+	void resizeEvent(QResizeEvent*);
+
+public slots:
+	void doRender();
+	void doUpdate();
 };
 
 #endif

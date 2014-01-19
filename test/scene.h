@@ -22,6 +22,8 @@ void scene_unload_resources(void);
 
 void scene_resize(int width, int height);
 
+void scene_update(void);
+
 void scene_render(void);
 
 __END_DECLS

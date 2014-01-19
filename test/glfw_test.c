@@ -77,6 +77,7 @@ int main(int argc, char** argv)
 
 	while (!glfwWindowShouldClose(window))
 	{
+		scene_update();
 		scene_render();
 
 		glfwSwapBuffers(window);

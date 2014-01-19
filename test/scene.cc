@@ -31,7 +31,7 @@
 static bool ready = 0;
 static int width = 0;
 static int height = 0;
-static unsigned int frame_count = 0;
+static unsigned int tick = 0;
 
 // resources
 static GLuint program = 0;
@@ -353,6 +353,11 @@ void scene_unload_resources(void)
 		glDeleteProgram(program);
 }
 
+void scene_update(void)
+{
+	++tick;
+}
+
 void scene_render(void)
 {
 	glClear(GL_COLOR_BUFFER_BIT);
@@ -364,9 +369,9 @@ void scene_render(void)
 	// uniform matrices
 	glm::mat4 m_projection = glm::perspective(45.0f, width / (float)height, 0.1f, 100.0f);
 	glm::mat4 m_view = glm::translate(glm::mat4(), glm::vec3(0.0f, 0.0f, -5.0f));
-	glm::mat4 m_model_rotate_x = glm::rotate(glm::mat4(), (float)frame_count, glm::vec3(1.0f, 0.0f, 0.0f));
-	glm::mat4 m_model_rotate_y = glm::rotate(glm::mat4(), (float)frame_count, glm::vec3(0.0f, 1.0f, 0.0f));
-	glm::mat4 m_model_rotate_z = glm::rotate(glm::mat4(), (float)frame_count / 2.0f, glm::vec3(0.0f, 0.0f, 1.0f));
+	glm::mat4 m_model_rotate_x = glm::rotate(glm::mat4(), (float)tick, glm::vec3(1.0f, 0.0f, 0.0f));
+	glm::mat4 m_model_rotate_y = glm::rotate(glm::mat4(), (float)tick, glm::vec3(0.0f, 1.0f, 0.0f));
+	glm::mat4 m_model_rotate_z = glm::rotate(glm::mat4(), (float)tick / 2.0f, glm::vec3(0.0f, 0.0f, 1.0f));
 	glm::mat4 m_model = m_model_rotate_z * m_model_rotate_y * m_model_rotate_x;
 	glm::mat4 m_modelview = m_view * m_model;
 	glm::mat4 m_mvp = m_projection * m_modelview;
@@ -405,6 +410,4 @@ void scene_render(void)
 	// cleanup
 	glBindVertexArray(0);
 	glUseProgram(0);
-
-	++frame_count;
 }

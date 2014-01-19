@@ -16,6 +16,13 @@ static void reshape_func(int width, int height)
 	scene_resize(width, height);
 }
 
+static void timer_func(int value)
+{
+	scene_update();
+
+	glutTimerFunc(20, &timer_func, 20);
+}
+
 static void display_func(void)
 {
 	scene_render();
@@ -35,6 +42,7 @@ int main(int argc, char** argv)
 	glutCreateWindow("GLUT test");
 
 	glutReshapeFunc(&reshape_func);
+	glutTimerFunc(20, &timer_func, 20);
 	glutDisplayFunc(&display_func);
 	glutIdleFunc(&display_func);
 

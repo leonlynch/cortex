@@ -8,8 +8,6 @@
  */
 
 #include <QtGui/QGuiApplication>
-#include <QtGui/QSurfaceFormat>
-#include <QOpenGLContext>
 #include <QtCore/QTimer>
 
 #include "openglwindow.h"
@@ -21,20 +19,11 @@ int main(int argc, char** argv)
 
 	QGuiApplication app(argc, argv);
 
-	QSurfaceFormat format;
-	format.setRenderableType(QSurfaceFormat::OpenGL);
-// 	format.setMajorVersion(3);
-// 	format.setMinorVersion(2);
-// 	format.setProfile(QSurfaceFormat::CoreProfile);
-	format.setSwapBehavior(QSurfaceFormat::DoubleBuffer);
-	format.setDepthBufferSize(32);
-
-	OpenGLWindow window(format);
+	OpenGLWindow window(&scene_resize, &scene_render, &scene_update);
 	window.resize(640, 480);
-	window.init(&scene_resize, &scene_render);
 	window.show();
 
-	window.context->makeCurrent(&window);
+	window.makeContextCurrent();
 	r = scene_init();
 	if (r)
 		return 1;
@@ -43,8 +32,8 @@ int main(int argc, char** argv)
 		return 1;
 
 	QTimer timer;
-	QObject::connect(&timer, SIGNAL(timeout()), &window, SLOT(render()));
-    timer.start(16);
+	QObject::connect(&timer, SIGNAL(timeout()), &window, SLOT(doUpdate()));
+	timer.start(20);
 
 	r = app.exec();
 
