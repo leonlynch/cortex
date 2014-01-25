@@ -10,8 +10,7 @@
 #include <QtGui/QGuiApplication>
 #include <QtCore/QTimer>
 
-#include "openglwindow.h"
-#include "scene.h"
+#include "testwindow.h"
 
 int main(int argc, char** argv)
 {
@@ -19,25 +18,15 @@ int main(int argc, char** argv)
 
 	QGuiApplication app(argc, argv);
 
-	OpenGLWindow window(&scene_resize, &scene_render, &scene_update);
+	TestWindow window;
 	window.resize(640, 480);
 	window.show();
-
-	window.makeContextCurrent();
-	r = scene_init();
-	if (r)
-		return 1;
-	r = scene_load_resources();
-	if (r)
-		return 1;
 
 	QTimer timer;
 	QObject::connect(&timer, SIGNAL(timeout()), &window, SLOT(doUpdate()));
 	timer.start(20);
 
 	r = app.exec();
-
-	scene_unload_resources();
 
 	return r;
 }
