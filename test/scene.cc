@@ -38,8 +38,6 @@ static unsigned int tick = 0;
 static GLuint program = 0;
 static GLuint vertex_shader = 0;
 static GLuint fragment_shader = 0;
-static GLuint position_attribute_index = 0;
-static GLuint normal_attribute_index = 1;
 static GLuint vao = 0;
 
 // uniform location map
@@ -47,6 +45,15 @@ typedef std::map<std::string, GLint> uniform_location_t;
 static uniform_location_t uniform_location;
 static GLint uniform_count = 0;
 static GLint uniform_max_length = 0;
+
+// attribute location map
+typedef std::map<std::string, GLint> attribute_location_t;
+static attribute_location_t attribute_location;
+static GLint attribute_count = 0;
+static GLint attribute_max_length = 0;
+
+// fragment data output
+static GLint fragdata_location = 0;
 
 struct vertex_t {
 	GLfloat position[3];
@@ -255,10 +262,10 @@ static GLuint scene_load_vao(const void* vertex_data, size_t vertex_data_len, co
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
 	glBufferData(GL_ARRAY_BUFFER, vertex_data_len, vertex_data, GL_STATIC_DRAW);
 
-	glEnableVertexAttribArray(position_attribute_index);
-	glVertexAttribPointer(position_attribute_index, 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex_t), 0);
-	glEnableVertexAttribArray(normal_attribute_index);
-	glVertexAttribPointer(normal_attribute_index, 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex_t), (const GLvoid*)offsetof(struct vertex_t, normal));
+	glEnableVertexAttribArray(attribute_location["v_position"]);
+	glVertexAttribPointer(attribute_location["v_position"], 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex_t), 0);
+	glEnableVertexAttribArray(attribute_location["v_normal"]);
+	glVertexAttribPointer(attribute_location["v_normal"], 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex_t), (const GLvoid*)offsetof(struct vertex_t, normal));
 
 	glGenBuffers(1, &ibo);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
@@ -294,10 +301,6 @@ int scene_load_resources(void)
 	// add shaders to program
 	glAttachShader(program, vertex_shader);
 	glAttachShader(program, fragment_shader);
-
-	// assign attributes
-	glBindAttribLocation(program, position_attribute_index, "position");
-	glBindAttribLocation(program, normal_attribute_index, "normal");
 
 	// link program
 	GLint link_status;
@@ -336,6 +339,22 @@ int scene_load_resources(void)
 		uniform_location[uniform_name] = glGetUniformLocation(program, uniform_name);
 		printf("%s(); uniform='%s'; size=%d; type=%d; location=%d\n", __FUNCTION__, uniform_name, uniform_size, uniform_type, uniform_location[uniform_name]);
 	}
+
+	// lookup all attributes
+	glGetProgramiv(program, GL_ACTIVE_ATTRIBUTES, &attribute_count);
+	glGetProgramiv(program, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, &attribute_max_length);
+	for (int i = 0; i < attribute_count; ++i) {
+		GLchar attribute_name[attribute_max_length];
+		GLint attribute_size = 0;
+		GLenum attribute_type = 0;
+		glGetActiveAttrib(program, i, sizeof(attribute_name), NULL, &attribute_size, & attribute_type, attribute_name);
+		attribute_location[attribute_name] = glGetAttribLocation(program, attribute_name);
+		printf("%s(); attribute='%s'; size=%d; type=%d; location=%d\n", __FUNCTION__, attribute_name, attribute_size, attribute_type, attribute_location[attribute_name]);
+	}
+
+	// lookup fragment output
+	fragdata_location = glGetFragDataLocation(program, "color");
+	printf("%s(); fragdata='%s'; location=%d\n", __FUNCTION__, "color", fragdata_location);
 
 	vao = scene_load_vao(vertex_data, sizeof(vertex_data), index_data, sizeof(index_data));
 
