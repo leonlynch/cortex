@@ -21,29 +21,36 @@ SimpleOpenGLWindow::SimpleOpenGLWindow(QWindow* parent)
 		valid = true;
 }
 
-void SimpleOpenGLWindow::resizeEvent(QResizeEvent* e)
+bool SimpleOpenGLWindow::event(QEvent* ev)
 {
-	context->makeCurrent(this);
-	resizeGL(e->size().width(), e->size().height());
-	QWindow::resizeEvent(e);
+	switch (ev->type()) {
+		case QEvent::Resize: {
+			if (valid && !initialized && context && context->isValid()) {
+				context->makeCurrent(this);
+				initialized = initGL();
+				if (!initialized) {
+					error("initGL() failed");
+					valid = false;
+				}
+			}
+
+			QResizeEvent* event = static_cast<QResizeEvent*>(ev);
+			resizeGL(event->size().width(), event->size().height());
+			break;
+		}
+		default:
+			break;
+	}
+
+	return QWindow::event(ev);
 }
 
 void SimpleOpenGLWindow::doRender()
 {
-	if (!isExposed() || !context || !context->isValid() || !valid)
+	if (!valid || !initialized || !isExposed() || !context || !context->isValid())
 		return;
 
 	context->makeCurrent(this);
-
-	if (valid && !initialized) {
-		initialized = initGL();
-		if (!initialized) {
-			error("initGL() failed");
-			valid = false;
-			return;
-		}
-	}
-
 	renderGL();
 	context->swapBuffers(this);
 }

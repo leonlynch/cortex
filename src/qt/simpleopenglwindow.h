@@ -24,7 +24,7 @@ public:
 	explicit SimpleOpenGLWindow(QWindow* parent = 0);
 
 protected:
-	void resizeEvent(QResizeEvent*);
+	virtual bool event(QEvent*);
 
 	virtual bool initGL() = 0;
 	virtual void resizeGL(int width, int height) = 0;
