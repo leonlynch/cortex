@@ -112,6 +112,19 @@ static GLuint index_data[] = {
 	22, 23, 21,
 };
 
+static void scene_debug(
+	GLenum source,
+	GLenum type,
+	GLuint id,
+	GLenum severity,
+	GLsizei length,
+	const GLchar* message,
+	void* userParam
+)
+{
+	fprintf(stderr, "source=%u; type=%u; id=%u; severity=%u; length=%d; message='%s'\n", source, type, id, severity, length, message);
+}
+
 int scene_init(void)
 {
 	if (ready)
@@ -133,6 +146,12 @@ int scene_init(void)
 	}
 
 	ready = true;
+
+	// debugging
+	if (GLEW_ARB_debug_output) {
+		glDebugMessageCallbackARB(&scene_debug, NULL);
+		printf("Debug enabled\n");
+	}
 
 	// depth testing
 	glEnable(GL_DEPTH_TEST);
