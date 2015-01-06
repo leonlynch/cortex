@@ -50,8 +50,8 @@ int main(int argc, char** argv)
 // 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 // 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
 // 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
 	glfwWindowHint(GLFW_DEPTH_BITS, 32);
+	glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
 
 	window = glfwCreateWindow(640, 480, "GLFW test", NULL, NULL);
 	if (!window) {

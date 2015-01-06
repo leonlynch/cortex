@@ -8,6 +8,7 @@
  */
 
 #include <GL/glut.h>
+#include <GL/freeglut_ext.h>
 
 #include "scene.h"
 
@@ -36,6 +37,7 @@ int main(int argc, char** argv)
 	glutInit(&argc, argv);
 // 	glutInitContextVersion(3, 2);
 // 	glutInitContextProfile(GLUT_CORE_PROFILE);
+	glutInitContextFlags(GLUT_DEBUG);
 	glutInitDisplayMode(GLUT_RGBA | GLUT_DEPTH | GLUT_DOUBLE);
 	glutInitWindowSize(640, 480);
 	glutInitWindowPosition(0, 0);

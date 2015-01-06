@@ -119,7 +119,7 @@ static void scene_debug(
 	GLenum severity,
 	GLsizei length,
 	const GLchar* message,
-	void* userParam
+	const void* userParam
 )
 {
 	fprintf(stderr, "source=%u; type=%u; id=%u; severity=%u; length=%d; message='%s'\n", source, type, id, severity, length, message);
@@ -148,9 +148,9 @@ int scene_init(void)
 	ready = true;
 
 	// debugging
-	if (GLEW_ARB_debug_output) {
-		glDebugMessageCallbackARB(&scene_debug, NULL);
-		printf("Debug enabled\n");
+	if (GLEW_KHR_debug) {
+		glDebugMessageCallback(&scene_debug, NULL);
+		std::printf("Debug enabled\n");
 	}
 
 	// depth testing
