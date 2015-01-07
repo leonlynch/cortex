@@ -400,8 +400,7 @@ void scene_update(void)
 
 void scene_render(void)
 {
-	glClear(GL_COLOR_BUFFER_BIT);
-	glClear(GL_DEPTH_BUFFER_BIT);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glViewport(0, 0, width, height);
 	glUseProgram(program);
