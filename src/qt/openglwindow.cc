@@ -18,9 +18,9 @@ OpenGLWindow::OpenGLWindow(QWindow* parent)
 {
 	QSurfaceFormat format;
 	format.setRenderableType(QSurfaceFormat::OpenGL);
-// 	format.setMajorVersion(3);
-// 	format.setMinorVersion(2);
-// 	format.setProfile(QSurfaceFormat::CoreProfile);
+	format.setMajorVersion(3);
+	format.setMinorVersion(3);
+	format.setProfile(QSurfaceFormat::CoreProfile);
 	format.setSwapBehavior(QSurfaceFormat::DoubleBuffer);
 	format.setDepthBufferSize(32);
 

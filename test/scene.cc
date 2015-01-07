@@ -139,6 +139,7 @@ int scene_init(void)
 		printf("%s\n", version);
 	}
 
+	glewExperimental = GL_TRUE;
 	GLenum res = glewInit();
 	if (res != GLEW_OK) {
 		fprintf(stderr, "glewInit(): '%s'\n", glewGetErrorString(res));
