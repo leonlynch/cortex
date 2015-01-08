@@ -1,5 +1,5 @@
 /**
- * @file testwindow.cc
+ * @file testwidget.cc
  *
  * Copyright (c) 2013 Leon Lynch
  *
@@ -7,17 +7,17 @@
  * See LICENSE file.
  */
 
-#include "testwindow.h"
+#include "testwidget.h"
 
 #include "scene.h"
 
-TestWindow::TestWindow(QWindow* parent)
-: QOpenGLWindow(QOpenGLWindow::NoPartialUpdate, parent)
+TestWidget::TestWidget(QWidget* parent)
+: QOpenGLWidget(parent)
 {
 	connect(&timer, SIGNAL(timeout()), SLOT(doUpdate()));
 }
 
-TestWindow::~TestWindow()
+TestWidget::~TestWidget()
 {
 	timer.stop();
 
@@ -26,7 +26,7 @@ TestWindow::~TestWindow()
 	doneCurrent();
 }
 
-void TestWindow::initializeGL()
+void TestWidget::initializeGL()
 {
 	int r;
 
@@ -44,17 +44,17 @@ void TestWindow::initializeGL()
 	timer.start(20);
 }
 
-void TestWindow::resizeGL(int width, int height)
+void TestWidget::resizeGL(int width, int height)
 {
 	scene_resize(width, height);
 }
 
-void TestWindow::paintGL()
+void TestWidget::paintGL()
 {
-	scene_render();
+    scene_render();
 }
 
-void TestWindow::doUpdate()
+void TestWidget::doUpdate()
 {
 	scene_update();
 

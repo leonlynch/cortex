@@ -1,5 +1,5 @@
 /**
- * @file qt_test.cc
+ * @file qtwidget_test.cc
  *
  * Copyright (c) 2013 Leon Lynch
  *
@@ -7,14 +7,13 @@
  * See LICENSE file.
  */
 
-#include <QtGui/QGuiApplication>
-#include <QtCore/QTimer>
+#include <QtWidgets/QApplication>
 
-#include "testwindow.h"
+#include "testwidget.h"
 
 int main(int argc, char** argv)
 {
-	QGuiApplication app(argc, argv);
+	QApplication app(argc, argv);
 
 	QSurfaceFormat format(QSurfaceFormat::DebugContext);
 	format.setRenderableType(QSurfaceFormat::OpenGL);
@@ -24,9 +23,8 @@ int main(int argc, char** argv)
 	format.setSwapBehavior(QSurfaceFormat::DoubleBuffer);
 	QSurfaceFormat::setDefaultFormat(format);
 
-	TestWindow window;
-	window.resize(640, 480);
-	window.show();
+	TestWidget widget;
+	widget.show();
 
 	return app.exec();
 }

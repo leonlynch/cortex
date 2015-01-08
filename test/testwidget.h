@@ -1,5 +1,5 @@
 /**
- * @file testwindow.h
+ * @file testwidget.h
  *
  * Copyright (c) 2013 Leon Lynch
  *
@@ -7,13 +7,13 @@
  * See LICENSE file.
  */
 
-#ifndef __TEST_WINDOW_H__
-#define __TEST_WINDOW_H__
+#ifndef __TEST_WIDGET_H__
+#define __TEST_WIDGET_H__
 
-#include <QtGui/QOpenGLWindow>
+#include <QtWidgets/QOpenGLWidget>
 #include <QtCore/QTimer>
 
-class TestWindow : public QOpenGLWindow
+class TestWidget : public QOpenGLWidget
 {
 	Q_OBJECT
 
@@ -21,8 +21,8 @@ private:
 	QTimer timer;
 
 public:
-	TestWindow(QWindow* parent = 0);
-	virtual ~TestWindow();
+	TestWidget(QWidget* parent = 0);
+	virtual ~TestWidget();
 
 protected:
 	virtual void initializeGL();
