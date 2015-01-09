@@ -25,3 +25,5 @@ set(QTWIDGET_TEST_SRCS qtwidget_test.cc testwidget.cc scene.cc)
 qt5_wrap_cpp(QTWIDGET_TEST_MOC testwidget.h)
 add_executable(qtwidget_test ${QTWIDGET_TEST_SRCS} ${QTWIDGET_TEST_MOC})
 target_link_libraries(qtwidget_test Qt5::Widgets ${GLEW_LIBRARIES} ${OPENGL_LIBRARIES})
+
+add_executable(bezier_test bezier_test.cc)
