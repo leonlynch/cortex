@@ -28,3 +28,4 @@ find_package(glfw 3 REQUIRED)
 
 add_subdirectory(src)
 add_subdirectory(test)
+add_subdirectory(demo)
