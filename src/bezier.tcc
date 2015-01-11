@@ -46,21 +46,21 @@ struct BernsteinPolynomial
 	}
 };
 
-// bezier point evaluation of degree n for control point i; terminate at i=0
-template<typename T, unsigned int n, unsigned int i>
-struct BezierPoint
+// bezier curve of degree n; terminate at i=0
+template<typename T, unsigned int n, unsigned int i = n>
+struct Bezier
 {
-	static T eval(const T* k, double t)
+	static T position(const T* k, double t)
 	{
 		// see http://en.wikipedia.org/wiki/B%C3%A9zier_curve#General_definition
-		return k[i] * static_cast<typename T::value_type>(BernsteinPolynomial<n, i>::value(t)) + BezierPoint<T, n, i - 1>::eval(k, t);
+		return k[i] * static_cast<typename T::value_type>(BernsteinPolynomial<n, i>::value(t)) + Bezier<T, n, i - 1>::position(k, t);
 	}
 };
 
 template<typename T, unsigned int n>
-struct BezierPoint<T, n, 0>
+struct Bezier<T, n, 0>
 {
-	static T eval(const T* k, double t)
+	static T position(const T* k, double t)
 	{
 		return k[0] * static_cast<typename T::value_type>(BernsteinPolynomial<n, 0>::value(t));
 	}
@@ -69,42 +69,41 @@ struct BezierPoint<T, n, 0>
 template <typename T, unsigned int n>
 BezierCurve<T,n>::BezierCurve(const ControlPoint control_points[n + 1])
 {
-	for (std::size_t i = 0; i < n + 1; ++i)
+	for (auto i = 0; i < n + 1; ++i)
 		k[i] = control_points[i];
 }
 
 template <typename T, unsigned int n>
-T BezierCurve<T,n>::eval(double t) const
+T BezierCurve<T,n>::position(double t) const
 {
-	return BezierPoint<T, n, n>::eval(k, t);
+	return Bezier<T,n>::position(k, t);
 }
 
 template <typename T, unsigned int n, unsigned int m>
 BezierSurface<T,n,m>::BezierSurface(const ControlPoint control_points[n + 1][m + 1])
 {
-	for (std::size_t i = 0; i < n + 1; ++i)
-		for (std::size_t j = 0; j < m + 1; ++j)
-			bc[i].k[j] = control_points[i][j];
+	for (auto i = 0; i < n + 1; ++i)
+		for (auto j = 0; j < m + 1; ++j)
+			k[i][j] = control_points[i][j];
 }
 
 template <typename T, unsigned int n, unsigned int m>
-T BezierSurface<T,n,m>::eval(double u, double v) const
+T BezierSurface<T,n,m>::position(double u, double v) const
 {
-	ControlPoint k[n + 1];
+	ControlPoint kn[n + 1];
 
-	// compute intermediate control points
-	for (std::size_t i = 0; i < n + 1; ++i)
-		k[i] = bc[i].eval(v);
+	// evaluation curves in direction m/v to obtain intermediate control points in direction n/u
+	for (auto i = 0; i < n + 1; ++i)
+		kn[i] = Bezier<T,m>::position(k[i], v);
 
-	BezierCurve<T,n> tmp(k);
-	return tmp.eval(u);
+	return Bezier<T,n>::position(kn, u);
 }
 
 template <typename T, unsigned int n>
 std::ostream& operator<< (std::ostream& os, const T& k)
 {
 	os << "(";
-	for (std::size_t i = 0; i < k.length(); ++i) {
+	for (auto i = 0; i < k.length(); ++i) {
 		if (i)
 			os << ", ";
 		os << k[i];
@@ -117,7 +116,7 @@ std::ostream& operator<< (std::ostream& os, const T& k)
 template <typename T, unsigned int n>
 std::ostream& operator<< (std::ostream& os, const BezierCurve<T,n>& bc)
 {
-	for (std::size_t i = 0; i < n + 1; ++i) {
+	for (auto i = 0; i < n + 1; ++i) {
 		if (i)
 			os << ", ";
 		::operator<< <T, n>(os, bc.k[i]);
@@ -129,10 +128,15 @@ std::ostream& operator<< (std::ostream& os, const BezierCurve<T,n>& bc)
 template <typename T, unsigned int n, unsigned int m>
 std::ostream& operator<< (std::ostream& os, const BezierSurface<T,n,m>& bs)
 {
-	for (std::size_t i = 0; i < n + 1; ++i) {
+	for (auto i = 0; i < n + 1; ++i) {
 		if (i)
 			os << "\n";
-		::operator<< <T, n>(os, bs.bc[i]);
+
+		for (auto j = 0; j < n + 1; ++j) {
+			if (j)
+				os << ", ";
+			::operator<< <T, n>(os, bs.k[i][j]);
+		}
 	}
 
 	return os;

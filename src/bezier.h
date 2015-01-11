@@ -21,7 +21,7 @@ struct BezierCurve
 
 	BezierCurve() {}
 	BezierCurve(const ControlPoint control_points[n + 1]);
-	T eval(double t) const;
+	T position(double t) const;
 };
 
 template <typename T, unsigned int n, unsigned int m>
@@ -29,11 +29,11 @@ struct BezierSurface
 {
 	typedef T ControlPoint;
 
-	BezierCurve<T,m> bc[n + 1];
+	ControlPoint k[n + 1][m + 1];
 
 	BezierSurface() {}
 	BezierSurface(const ControlPoint control_points[n + 1][m + 1]);
-	T eval(double u, double v) const;
+	T position(double u, double v) const;
 };
 
 template <typename T, unsigned int n>
