@@ -7,14 +7,21 @@
  * See LICENSE file.
  */
 
+#ifndef __MAINWINDOW_H__
+#define __MAINWINDOW_H__
+
 #include <QtWidgets/QMainWindow>
 #include <QtCore/QString>
 
 #include "ui_mainwindow.h"
+#include "demowidget.h"
 
 class MainWindow : public QMainWindow, private Ui::MainWindow
 {
 	Q_OBJECT
+
+private:
+	DemoWidget* demowidget;
 
 public:
 	MainWindow(QWidget* parent = 0);
@@ -24,5 +31,8 @@ private slots:
 	// connect-by-name
 	// TODO: add slots here
 
-	void showError(const QString& msg);
+	void appendLog(const QString& msg);
+	void appendError(const QString& msg);
 };
+
+#endif

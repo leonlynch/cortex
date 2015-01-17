@@ -8,16 +8,25 @@
  */
 
 #include <QtWidgets/QApplication>
+#include <QtGui/QSurfaceFormat>
 
 #include "mainwindow.h"
 
 int main(int argc, char** argv)
 {
-	QApplication application(argc, argv);
-	application.setApplicationName("Cortex Demo");
+	QApplication app(argc, argv);
+	app.setApplicationName("Cortex Demo");
+
+	QSurfaceFormat format(QSurfaceFormat::DebugContext);
+	format.setRenderableType(QSurfaceFormat::OpenGL);
+	format.setVersion(3, 3);
+	format.setProfile(QSurfaceFormat::CoreProfile);
+	format.setDepthBufferSize(32);
+	format.setSwapBehavior(QSurfaceFormat::DoubleBuffer);
+	QSurfaceFormat::setDefaultFormat(format);
 
 	MainWindow mainwindow;
 	mainwindow.showMaximized();
 
-	return application.exec();
+	return app.exec();
 }

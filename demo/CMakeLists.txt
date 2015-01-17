@@ -10,10 +10,16 @@ cmake_minimum_required(VERSION 2.8.11)
 include_directories(${LIBCORTEX_INCLUDE_DIR})
 set(CMAKE_INCLUDE_CURRENT_DIR ON) # include generated files
 qt5_wrap_ui(CORTEX_DEMO_UI mainwindow.ui)
-qt5_wrap_cpp(CORTEX_DEMO_MOC mainwindow.h)
+qt5_wrap_cpp(CORTEX_DEMO_MOC mainwindow.h demowidget.h)
 add_executable(cortex_demo
-	main.cc mainwindow.cc
+	main.cc
+	mainwindow.cc
+	demowidget.cc
 	${CORTEX_DEMO_UI}
 	${CORTEX_DEMO_MOC}
 )
-target_link_libraries(cortex_demo Qt5::Widgets)
+target_link_libraries(cortex_demo
+	Qt5::Widgets
+	${GLEW_LIBRARIES}
+	${OPENGL_gl_LIBRARY}
+)
