@@ -55,6 +55,16 @@ struct Bezier
 		// see http://en.wikipedia.org/wiki/B%C3%A9zier_curve#General_definition
 		return k[i] * static_cast<typename T::value_type>(BernsteinPolynomial<n, i>::value(t)) + Bezier<T, n, i - 1>::position(k, t);
 	}
+
+	static T tangent(const T* k, double t)
+	{
+		// bezier curve of degree n with control points k has derivative which is bezier curve of degree n-1 with control points d[i] = n(k[i + 1] - k[i])
+		T d[n];
+		for (auto ni = 0; ni < n; ++ni)
+			d[ni] = static_cast<typename T::value_type>(n) * (k[ni + 1] - k[ni]);
+
+		return Bezier<T,n-1>::position(d, t);
+	}
 };
 
 template<typename T, unsigned int n>
@@ -79,6 +89,15 @@ T BezierCurve<T,n>::position(double t) const
 	return Bezier<T,n>::position(k, t);
 }
 
+template <typename T, unsigned int n>
+T BezierCurve<T,n>::normal(double t) const
+{
+	T dt = Bezier<T,n>::tangent(k, t);
+
+	// rotate 90deg counter-clockwise
+	return T(-dt[1], dt[0]);
+}
+
 template <typename T, unsigned int n, unsigned int m>
 BezierSurface<T,n,m>::BezierSurface(const ControlPoint control_points[n + 1][m + 1])
 {
@@ -92,11 +111,42 @@ T BezierSurface<T,n,m>::position(double u, double v) const
 {
 	ControlPoint kn[n + 1];
 
-	// evaluation curves in direction m/v to obtain intermediate control points in direction n/u
+	// evaluate curves in direction m/v to obtain intermediate control points in direction n/u
 	for (auto i = 0; i < n + 1; ++i)
 		kn[i] = Bezier<T,m>::position(k[i], v);
 
 	return Bezier<T,n>::position(kn, u);
+}
+
+template <typename T, unsigned int n, unsigned int m>
+T BezierSurface<T,n,m>::normal(double u, double v) const
+{
+	ControlPoint kn[n + 1];
+	ControlPoint km[m + 1];
+
+	// evaluate curves in direction m/v to obtain intermediate control points in direction n/u
+	for (auto i = 0; i < n + 1; ++i)
+		kn[i] = Bezier<T,m>::position(k[i], v);
+
+	// evaluate curves in direction n/u to obtain intermediate control points in direction m/v
+	for (auto i = 0; i < m + 1; ++i) {
+		// transpose control points
+		ControlPoint kmn[n + 1];
+		for (auto j = 0; j < n + 1; ++j)
+			kmn[j] = k[j][i];
+
+		km[i] = Bezier<T,n>::position(kmn, u);
+	}
+
+	T du = Bezier<T, n>::tangent(kn, u);
+	T dv = Bezier<T, m>::tangent(km, v);
+
+	// cross product
+	return T(
+		du[1] * dv[2] - du[2] * dv[1],
+		du[2] * dv[0] - du[0] * dv[2],
+		du[0] * dv[1] - du[1] * dv[0]
+	);
 }
 
 template <typename T, unsigned int n>

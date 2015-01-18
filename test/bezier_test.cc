@@ -47,24 +47,26 @@ std::ostream& operator<< (std::ostream& os, const glm::vec3& v)
 template <typename T, unsigned int n>
 void print_bezier_eval(const BezierCurve<T,n>& bc, unsigned int count)
 {
-	for (auto i = 0; i < count + 1; ++i) {
-		double t = i / static_cast<double>(count);
+	for (auto i = 0; i < count; ++i) {
+		double t = i / static_cast<double>(count - 1);
 
 		glm::vec2 position = bc.position(t);
-		std::cout << "p: " << position << "\n";
+		glm::vec2 normal = bc.normal(t);
+		std::cout << "p: " << position << "; n: " << normal << "\n";
 	}
 }
 
 template <typename T, unsigned int n, unsigned int m>
 void print_bezier_eval(const BezierSurface<T,n,m>& bs, unsigned int u_count, unsigned int v_count)
 {
-	for (auto i = 0; i < u_count + 1; ++i) {
-		for (auto j = 0; j < v_count + 1; ++j) {
-			double u = i / static_cast<double>(u_count);
-			double v = j / static_cast<double>(v_count);
+	for (auto i = 0; i < u_count; ++i) {
+		for (auto j = 0; j < v_count; ++j) {
+			double u = i / static_cast<double>(u_count - 1);
+			double v = j / static_cast<double>(v_count - 1);
 
 			glm::vec3 position = bs.position(u, v);
-			std::cout << "p: " << position << "\n";
+			glm::vec3 normal = bs.normal(u, v);
+			std::cout << "p: " << position << "; n: " << normal << "\n";
 		}
 	}
 }
