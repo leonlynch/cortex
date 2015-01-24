@@ -98,6 +98,27 @@ T BezierCurve<T,n>::normal(double t) const
 	return T(-dt[1], dt[0]);
 }
 
+template <typename T, unsigned int n>
+void BezierCurve<T,n>::tesselate(unsigned int t_count, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices) const
+{
+	vertices.resize(t_count);
+	indices.resize((t_count - 1) * 2);
+
+	size_t idx = 0;
+	for (auto i = 0; i < t_count; ++i) {
+		double t = i / static_cast<double>(t_count - 1);
+
+		struct Vertex& vertex = vertices[i];
+		vertex.position = position(t);
+		vertex.normal = normal(t);
+
+		if (i < t_count - 1) {
+			indices[idx++] = i;
+			indices[idx++] = i + 1;
+		}
+	}
+}
+
 template <typename T, unsigned int n, unsigned int m>
 BezierSurface<T,n,m>::BezierSurface(const ControlPoint control_points[n + 1][m + 1])
 {
@@ -147,6 +168,34 @@ T BezierSurface<T,n,m>::normal(double u, double v) const
 		du[2] * dv[0] - du[0] * dv[2],
 		du[0] * dv[1] - du[1] * dv[0]
 	);
+}
+
+template <typename T, unsigned int n, unsigned int m>
+void BezierSurface<T,n,m>::tesselate(unsigned int u_count, unsigned int v_count, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices) const
+{
+	vertices.resize(u_count * v_count);
+	indices.resize((u_count - 1) * (v_count - 1) * 3 * 2);
+
+	size_t idx = 0;
+	for (auto i = 0; i < u_count; ++i) {
+		for (auto j = 0; j < v_count; ++j) {
+			double u = i / static_cast<double>(u_count - 1);
+			double v = j / static_cast<double>(v_count - 1);
+
+			struct Vertex& vertex = vertices[i * u_count + j];
+			vertex.position = position(u, v);
+			vertex.normal = normal(u, v);
+
+			if (i < u_count - 1 && j < v_count - 1) {
+				indices[idx++] = i * u_count + j;
+				indices[idx++] = (i + 1) * u_count + j;
+				indices[idx++] = i * u_count + j + 1;
+				indices[idx++] = i * u_count + j + 1;
+				indices[idx++] = (i + 1) * u_count + j;
+				indices[idx++] = (i + 1) * u_count + j + 1;
+			}
+		}
+	}
 }
 
 template <typename T, unsigned int n>
