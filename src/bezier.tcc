@@ -12,6 +12,8 @@
 #include <cstddef>
 #include <cmath>
 
+#include <utility>
+
 #ifndef __CORTEX_BEZIER_TCC__
 #define __CORTEX_BEZIER_TCC__
 
@@ -101,20 +103,21 @@ T BezierCurve<T,n>::normal(double t) const
 template <typename T, unsigned int n>
 void BezierCurve<T,n>::tesselate(unsigned int t_count, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices) const
 {
-	vertices.resize(t_count);
-	indices.resize((t_count - 1) * 2);
+	vertices.reserve(vertices.size() + t_count);
+	indices.reserve(indices.size() + ((t_count - 1) * 2));
 
-	size_t idx = 0;
+	std::size_t offset = vertices.size();
 	for (auto i = 0; i < t_count; ++i) {
 		double t = i / static_cast<double>(t_count - 1);
 
-		struct Vertex& vertex = vertices[i];
+		struct Vertex vertex;
 		vertex.position = position(t);
 		vertex.normal = normal(t);
+		vertices.push_back(std::move(vertex));
 
 		if (i < t_count - 1) {
-			indices[idx++] = i;
-			indices[idx++] = i + 1;
+			indices.push_back(offset + i);
+			indices.push_back(offset + (i + 1));
 		}
 	}
 }
@@ -173,26 +176,27 @@ T BezierSurface<T,n,m>::normal(double u, double v) const
 template <typename T, unsigned int n, unsigned int m>
 void BezierSurface<T,n,m>::tesselate(unsigned int u_count, unsigned int v_count, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices) const
 {
-	vertices.resize(u_count * v_count);
-	indices.resize((u_count - 1) * (v_count - 1) * 3 * 2);
+	vertices.reserve(vertices.size() + (u_count * v_count));
+	indices.reserve(indices.size() + ((u_count - 1) * (v_count - 1) * 3 * 2));
 
-	size_t idx = 0;
+	std::size_t offset = vertices.size();
 	for (auto i = 0; i < u_count; ++i) {
 		for (auto j = 0; j < v_count; ++j) {
 			double u = i / static_cast<double>(u_count - 1);
 			double v = j / static_cast<double>(v_count - 1);
 
-			struct Vertex& vertex = vertices[i * u_count + j];
+			struct Vertex vertex;
 			vertex.position = position(u, v);
 			vertex.normal = normal(u, v);
+			vertices.push_back(std::move(vertex));
 
 			if (i < u_count - 1 && j < v_count - 1) {
-				indices[idx++] = i * u_count + j;
-				indices[idx++] = (i + 1) * u_count + j;
-				indices[idx++] = i * u_count + j + 1;
-				indices[idx++] = i * u_count + j + 1;
-				indices[idx++] = (i + 1) * u_count + j;
-				indices[idx++] = (i + 1) * u_count + j + 1;
+				indices.push_back(offset + (i * u_count + j));
+				indices.push_back(offset + ((i + 1) * u_count + j));
+				indices.push_back(offset + (i * u_count + j + 1));
+				indices.push_back(offset + (i * u_count + j + 1));
+				indices.push_back(offset + ((i + 1) * u_count + j));
+				indices.push_back(offset + ((i + 1) * u_count + j + 1));
 			}
 		}
 	}
