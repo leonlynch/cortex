@@ -1,5 +1,5 @@
 /**
- * @file teapot.cc
+ * @file teaset.cc
  *
  * Copyright (c) 2013 Leon Lynch
  *
@@ -7,8 +7,7 @@
  * See LICENSE file.
  */
 
-#include "teapot.h"
-#include "internal/teapot_geometry.h"
+#include "teaset.h"
 
 #include <cstddef>
 #include <cstdio>
@@ -20,19 +19,11 @@
 
 #include <boost/lexical_cast.hpp>
 
-Teapot::Teapot()
-{
-	readData(teapot_str);
-}
+extern const char teapot_geometry_str[];
+extern const char teacup_geometry_str[];
 
-Teapot::~Teapot()
+Teaset::~Teaset()
 {
-}
-
-void Teapot::tesselate(unsigned int u_count, unsigned int v_count, std::vector<BezierPatch::Vertex>& vertices, std::vector<unsigned int>& indices) const
-{
-	for (auto&& patch : patches)
-		patch.tesselate(12, 12, vertices, indices);
 }
 
 static std::size_t readCount(std::istringstream& ss)
@@ -44,7 +35,7 @@ static std::size_t readCount(std::istringstream& ss)
 	return boost::lexical_cast<std::size_t>(str);
 }
 
-void Teapot::readData(const char* data)
+void Teaset::readData(const char* data, bool data_is_ccw)
 {
 	std::istringstream ss(data);
 	std::size_t count;
@@ -89,10 +80,32 @@ void Teapot::readData(const char* data)
 	for (auto&& index : indices) {
 		BezierPatch patch;
 
-		for (std::size_t i = 0; i < 16; ++i) {
-			patch.k[i%4][i/4] = vertices[index[i] - 1];
+		if (data_is_ccw) {
+			for (std::size_t i = 0; i < 16; ++i) {
+				patch.k[i/4][i%4] = vertices[index[i] - 1];
+			}
+		} else {
+			for (std::size_t i = 0; i < 16; ++i) {
+				patch.k[i/4][3 - (i%4)] = vertices[index[i] - 1];
+			}
 		}
 
 		patches.push_back(patch);
 	}
+}
+
+void Teaset::tesselate(unsigned int u_count, unsigned int v_count, std::vector<BezierPatch::Vertex>& vertices, std::vector<unsigned int>& indices) const
+{
+	for (auto&& patch : patches)
+		patch.tesselate(12, 12, vertices, indices);
+}
+
+Teapot::Teapot()
+{
+	readData(teapot_geometry_str, false);
+}
+
+Teacup::Teacup()
+{
+	readData(teacup_geometry_str, true);
 }

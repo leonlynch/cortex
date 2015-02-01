@@ -9,3 +9,8 @@ cmake_minimum_required(VERSION 2.8.11)
 
 set(LIBCORTEX_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR} CACHE PATH "libcortex include path")
 include_directories(${LIBCORTEX_INCLUDE_DIR})
+
+add_library(cortex
+	teaset.cc
+	internal/teaset_geometry.cc
+)

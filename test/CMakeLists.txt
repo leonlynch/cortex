@@ -7,6 +7,8 @@
 
 cmake_minimum_required(VERSION 2.8.11)
 
+include_directories(${LIBCORTEX_INCLUDE_DIR})
+
 set(GLFW_TEST_SRCS glfw_test.c scene.cc)
 add_executable(glfw_test ${GLFW_TEST_SRCS})
 target_link_libraries(glfw_test ${GLFW_LIBRARY} ${GLEW_LIBRARIES} ${OPENGL_LIBRARIES})
@@ -27,3 +29,6 @@ add_executable(qtwidget_test ${QTWIDGET_TEST_SRCS} ${QTWIDGET_TEST_MOC})
 target_link_libraries(qtwidget_test Qt5::Widgets ${GLEW_LIBRARIES} ${OPENGL_LIBRARIES})
 
 add_executable(bezier_test bezier_test.cc)
+
+add_executable(teaset_test teaset_test.cc)
+target_link_libraries(teaset_test cortex)

@@ -1,5 +1,5 @@
 /**
- * @file teapot.h
+ * @file teaset.h
  *
  * Copyright (c) 2013 Leon Lynch
  *
@@ -7,8 +7,8 @@
  * See LICENSE file.
  */
 
-#ifndef __CORTEX_TEAPOT_H__
-#define __CORTEX_TEAPOT_H__
+#ifndef __CORTEX_TEASET_H__
+#define __CORTEX_TEASET_H__
 
 #include "glm/glm.hpp"
 
@@ -16,22 +16,32 @@
 
 #include <list>
 
-class Teapot
+class Teaset
 {
 public:
 	typedef BezierSurface<glm::vec3,3,3> BezierPatch;
 
-private:
+protected:
 	std::list<BezierPatch> patches;
 
+	virtual ~Teaset();
+
+	void readData(const char* data, bool data_is_ccw);
+
+public:
+	void tesselate(unsigned int u_count, unsigned int v_count, std::vector<BezierPatch::Vertex>& vertices, std::vector<unsigned int>& indices) const;
+};
+
+class Teapot : public Teaset
+{
 public:
 	Teapot();
-	virtual ~Teapot();
+};
 
-	void tesselate(unsigned int u_count, unsigned int v_count, std::vector<BezierPatch::Vertex>& vertices, std::vector<unsigned int>& indices) const;
-
-private:
-	void readData(const char* data);
+class Teacup : public Teaset
+{
+public:
+	Teacup();
 };
 
 #endif
