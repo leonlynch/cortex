@@ -13,4 +13,5 @@ int main()
 {
 	Teapot teapot;
 	Teacup teacup;
+	Teaspoon teaspoon;
 }

@@ -21,6 +21,7 @@
 
 extern const char teapot_geometry_str[];
 extern const char teacup_geometry_str[];
+extern const char teaspoon_geometry_str[];
 
 Teaset::~Teaset()
 {
@@ -108,4 +109,9 @@ Teapot::Teapot()
 Teacup::Teacup()
 {
 	readData(teacup_geometry_str, true);
+}
+
+Teaspoon::Teaspoon()
+{
+	readData(teaspoon_geometry_str, true);
 }

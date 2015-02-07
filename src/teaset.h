@@ -44,4 +44,10 @@ public:
 	Teacup();
 };
 
+class Teaspoon : public Teaset
+{
+public:
+	Teaspoon();
+};
+
 #endif
