@@ -7,6 +7,9 @@
 
 cmake_minimum_required(VERSION 2.8.11)
 
+set(VERSION ${GIT_DESCRIBE})
+configure_file(version.h.in version.h)
+
 include_directories(${LIBCORTEX_INCLUDE_DIR})
 set(CMAKE_INCLUDE_CURRENT_DIR ON) # include generated files
 qt5_wrap_ui(CORTEX_DEMO_UI mainwindow.ui)

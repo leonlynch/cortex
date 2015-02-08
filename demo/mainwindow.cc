@@ -8,6 +8,7 @@
  */
 
 #include "mainwindow.h"
+#include "version.h"
 
 #include <iostream>
 
@@ -15,6 +16,8 @@ MainWindow::MainWindow(QWidget* parent)
 : QMainWindow(parent)
 {
 	setupUi(this);
+
+	applicationVersionStr->setText(VERSION);
 
 	demowidget = new DemoWidget(this);
 	connect(demowidget, &DemoWidget::log, this, &MainWindow::appendLog);
