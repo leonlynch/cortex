@@ -206,6 +206,7 @@ static int scene_read_shader(const std::string& filename, std::string& source)
 
 error:
 	r = -1;
+
 exit:
 	fclose(f);
 	return r;
@@ -218,7 +219,8 @@ static GLuint scene_load_shader(const std::string& filename, GLenum shader_type)
 	GLuint shader;
 	const char* source_ptr;
 	GLint info_log_len = 0;
-	GLint compile_status;
+	GLchar* info_log = NULL;
+	GLint compile_status = GL_FALSE;
 
 	r = scene_read_shader(filename, source);
 	if (r)
@@ -237,8 +239,14 @@ static GLuint scene_load_shader(const std::string& filename, GLenum shader_type)
 
 	// retrieve shader info log
 	glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &info_log_len);
-	GLchar info_log[info_log_len];
-	glGetShaderInfoLog(shader, sizeof(info_log), NULL, info_log);
+	if (info_log_len < 0) {
+		fprintf(stderr, "glGetShaderiv(GL_INFO_LOG_LENGTH) failed\n");
+		goto error2;
+	}
+	if (info_log_len > 1) {
+		info_log = new GLchar[info_log_len];
+		glGetShaderInfoLog(shader, info_log_len, NULL, info_log);
+	}
 
 	// check shader compile status
 	glGetShaderiv(shader, GL_COMPILE_STATUS, &compile_status);
@@ -251,20 +259,28 @@ static GLuint scene_load_shader(const std::string& filename, GLenum shader_type)
 		glGetShaderSource(shader, sizeof(shader_source), NULL, shader_source);
 		fprintf(stderr, "%s\n", shader_source);
 
-		fprintf(stderr, "%s: %s\n", filename.c_str(), info_log);
+		if (info_log) {
+			fprintf(stderr, "%s: %s\n", filename.c_str(), info_log);
+		}
 
-		glDeleteShader(shader);
-		goto error2;
-	} else if (info_log_len > 1) {
+		goto error3;
+	} else if (info_log) {
 		fprintf(stderr, "%s: %s\n", filename.c_str(), info_log);
 	}
 
 	goto exit;
 
+error3:
+	if (info_log)
+		delete[] info_log;
+	info_log = NULL;
+
 error2:
 	glDeleteShader(shader);
+
 error:
 	shader = 0;
+
 exit:
 	return shader;
 }
