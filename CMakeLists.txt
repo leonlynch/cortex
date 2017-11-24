@@ -24,7 +24,7 @@ find_package(Qt5Core 5.4 REQUIRED)
 find_package(Qt5Gui 5.4 REQUIRED)
 find_package(Qt5Widgets 5.4 REQUIRED)
 find_package(GLUT REQUIRED)
-find_package(glfw 3 REQUIRED)
+find_package(glfw3 3.2 REQUIRED)
 
 add_subdirectory(src)
 add_subdirectory(test)

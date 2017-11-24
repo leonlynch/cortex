@@ -11,7 +11,7 @@ include_directories(${LIBCORTEX_INCLUDE_DIR})
 
 set(GLFW_TEST_SRCS glfw_test.c scene.cc)
 add_executable(glfw_test ${GLFW_TEST_SRCS})
-target_link_libraries(glfw_test ${GLFW_LIBRARY} ${GLEW_LIBRARIES} ${OPENGL_LIBRARIES})
+target_link_libraries(glfw_test glfw ${GLEW_LIBRARIES} ${OPENGL_LIBRARIES})
 
 set(GLUT_TEST_SRCS glut_test.c scene.cc)
 add_executable(glut_test ${GLUT_TEST_SRCS})
