@@ -9,7 +9,6 @@
 
 #include "bezier.h"
 
-#include <cstddef>
 #include <cmath>
 
 #include <utility>
@@ -49,7 +48,7 @@ struct BernsteinPolynomial
 };
 
 // bezier curve of degree n; terminate at i=0
-template<typename T, unsigned int n, unsigned int i = n>
+template<typename T, std::size_t n, std::size_t i = n>
 struct Bezier
 {
 	static T position(const T* k, double t)
@@ -62,14 +61,14 @@ struct Bezier
 	{
 		// bezier curve of degree n with control points k has derivative which is bezier curve of degree n-1 with control points d[i] = n(k[i + 1] - k[i])
 		T d[n];
-		for (auto ni = 0; ni < n; ++ni)
+		for (std::size_t ni = 0; ni < n; ++ni)
 			d[ni] = static_cast<typename T::value_type>(n) * (k[ni + 1] - k[ni]);
 
 		return Bezier<T,n-1>::position(d, t);
 	}
 };
 
-template<typename T, unsigned int n>
+template<typename T, std::size_t n>
 struct Bezier<T, n, 0>
 {
 	static T position(const T* k, double t)
@@ -78,20 +77,20 @@ struct Bezier<T, n, 0>
 	}
 };
 
-template <typename T, unsigned int n>
+template <typename T, std::size_t n>
 BezierCurve<T,n>::BezierCurve(const ControlPoint control_points[n + 1])
 {
-	for (auto i = 0; i < n + 1; ++i)
+	for (std::size_t i = 0; i < n + 1; ++i)
 		k[i] = control_points[i];
 }
 
-template <typename T, unsigned int n>
+template <typename T, std::size_t n>
 T BezierCurve<T,n>::position(double t) const
 {
 	return Bezier<T,n>::position(k, t);
 }
 
-template <typename T, unsigned int n>
+template <typename T, std::size_t n>
 T BezierCurve<T,n>::normal(double t) const
 {
 	T dt = Bezier<T,n>::tangent(k, t);
@@ -100,14 +99,14 @@ T BezierCurve<T,n>::normal(double t) const
 	return T(-dt[1], dt[0]);
 }
 
-template <typename T, unsigned int n>
-void BezierCurve<T,n>::tesselate(unsigned int t_count, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices) const
+template <typename T, std::size_t n>
+void BezierCurve<T,n>::tesselate(std::size_t t_count, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices) const
 {
 	vertices.reserve(vertices.size() + t_count);
 	indices.reserve(indices.size() + ((t_count - 1) * 2));
 
 	std::size_t offset = vertices.size();
-	for (auto i = 0; i < t_count; ++i) {
+	for (std::size_t i = 0; i < t_count; ++i) {
 		double t = i / static_cast<double>(t_count - 1);
 
 		struct Vertex vertex;
@@ -122,41 +121,41 @@ void BezierCurve<T,n>::tesselate(unsigned int t_count, std::vector<Vertex>& vert
 	}
 }
 
-template <typename T, unsigned int n, unsigned int m>
+template <typename T, std::size_t n, std::size_t m>
 BezierSurface<T,n,m>::BezierSurface(const ControlPoint control_points[n + 1][m + 1])
 {
-	for (auto i = 0; i < n + 1; ++i)
-		for (auto j = 0; j < m + 1; ++j)
+	for (std::size_t i = 0; i < n + 1; ++i)
+		for (std::size_t j = 0; j < m + 1; ++j)
 			k[i][j] = control_points[i][j];
 }
 
-template <typename T, unsigned int n, unsigned int m>
+template <typename T, std::size_t n, std::size_t m>
 T BezierSurface<T,n,m>::position(double u, double v) const
 {
 	ControlPoint kn[n + 1];
 
 	// evaluate curves in direction m/v to obtain intermediate control points in direction n/u
-	for (auto i = 0; i < n + 1; ++i)
+	for (std::size_t i = 0; i < n + 1; ++i)
 		kn[i] = Bezier<T,m>::position(k[i], v);
 
 	return Bezier<T,n>::position(kn, u);
 }
 
-template <typename T, unsigned int n, unsigned int m>
+template <typename T, std::size_t n, std::size_t m>
 T BezierSurface<T,n,m>::normal(double u, double v) const
 {
 	ControlPoint kn[n + 1];
 	ControlPoint km[m + 1];
 
 	// evaluate curves in direction m/v to obtain intermediate control points in direction n/u
-	for (auto i = 0; i < n + 1; ++i)
+	for (std::size_t i = 0; i < n + 1; ++i)
 		kn[i] = Bezier<T,m>::position(k[i], v);
 
 	// evaluate curves in direction n/u to obtain intermediate control points in direction m/v
-	for (auto i = 0; i < m + 1; ++i) {
+	for (std::size_t i = 0; i < m + 1; ++i) {
 		// transpose control points
 		ControlPoint kmn[n + 1];
-		for (auto j = 0; j < n + 1; ++j)
+		for (std::size_t j = 0; j < n + 1; ++j)
 			kmn[j] = k[j][i];
 
 		km[i] = Bezier<T,n>::position(kmn, u);
@@ -173,15 +172,15 @@ T BezierSurface<T,n,m>::normal(double u, double v) const
 	);
 }
 
-template <typename T, unsigned int n, unsigned int m>
-void BezierSurface<T,n,m>::tesselate(unsigned int u_count, unsigned int v_count, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices) const
+template <typename T, std::size_t n, std::size_t m>
+void BezierSurface<T,n,m>::tesselate(std::size_t u_count, std::size_t v_count, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices) const
 {
 	vertices.reserve(vertices.size() + (u_count * v_count));
 	indices.reserve(indices.size() + ((u_count - 1) * (v_count - 1) * 3 * 2));
 
 	std::size_t offset = vertices.size();
-	for (auto i = 0; i < u_count; ++i) {
-		for (auto j = 0; j < v_count; ++j) {
+	for (std::size_t i = 0; i < u_count; ++i) {
+		for (std::size_t j = 0; j < v_count; ++j) {
 			double u = i / static_cast<double>(u_count - 1);
 			double v = j / static_cast<double>(v_count - 1);
 
@@ -202,8 +201,8 @@ void BezierSurface<T,n,m>::tesselate(unsigned int u_count, unsigned int v_count,
 	}
 }
 
-template <typename T, unsigned int n>
-std::ostream& operator<< (std::ostream& os, const T& k)
+template <typename T, std::size_t n>
+std::ostream& operator<< (std::ostream& os, const typename BezierCurve<T,n>::ControlPoint& k)
 {
 	os << "(";
 	for (auto i = 0; i < k.length(); ++i) {
@@ -216,10 +215,10 @@ std::ostream& operator<< (std::ostream& os, const T& k)
 	return os;
 }
 
-template <typename T, unsigned int n>
+template <typename T, std::size_t n>
 std::ostream& operator<< (std::ostream& os, const BezierCurve<T,n>& bc)
 {
-	for (auto i = 0; i < n + 1; ++i) {
+	for (std::size_t i = 0; i < n + 1; ++i) {
 		if (i)
 			os << ", ";
 		::operator<< <T, n>(os, bc.k[i]);
@@ -228,14 +227,28 @@ std::ostream& operator<< (std::ostream& os, const BezierCurve<T,n>& bc)
 	return os;
 }
 
-template <typename T, unsigned int n, unsigned int m>
+template <typename T, std::size_t n, std::size_t m>
+std::ostream& operator<< (std::ostream& os, const typename BezierSurface<T,n,m>::ControlPoint& k)
+{
+	os << "(";
+	for (auto i = 0; i < k.length(); ++i) {
+		if (i)
+			os << ", ";
+		os << k[i];
+	}
+	os << ")";
+
+	return os;
+}
+
+template <typename T, std::size_t n, std::size_t m>
 std::ostream& operator<< (std::ostream& os, const BezierSurface<T,n,m>& bs)
 {
-	for (auto i = 0; i < n + 1; ++i) {
+	for (std::size_t i = 0; i < n + 1; ++i) {
 		if (i)
 			os << "\n";
 
-		for (auto j = 0; j < n + 1; ++j) {
+		for (std::size_t j = 0; j < n + 1; ++j) {
 			if (j)
 				os << ", ";
 			::operator<< <T, n>(os, bs.k[i][j]);

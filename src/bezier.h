@@ -10,10 +10,12 @@
 #ifndef __CORTEX_BEZIER_H__
 #define __CORTEX_BEZIER_H__
 
+#include <cstddef>
+
 #include <vector>
 #include <ostream>
 
-template <typename T, unsigned int n>
+template <typename T, std::size_t n>
 struct BezierCurve
 {
 	typedef T ControlPoint;
@@ -31,10 +33,10 @@ struct BezierCurve
 		T position;
 		T normal;
 	};
-	void tesselate(unsigned int t_count, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices) const;
+	void tesselate(std::size_t t_count, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices) const;
 };
 
-template <typename T, unsigned int n, unsigned int m>
+template <typename T, std::size_t n, std::size_t m>
 struct BezierSurface
 {
 	typedef T ControlPoint;
@@ -52,16 +54,19 @@ struct BezierSurface
 		T position;
 		T normal;
 	};
-	void tesselate(unsigned int u_count, unsigned int v_count, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices) const;
+	void tesselate(std::size_t u_count, std::size_t v_count, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices) const;
 };
 
-template <typename T, unsigned int n>
-std::ostream& operator<< (std::ostream& os, const T& k);
+template <typename T, std::size_t n>
+std::ostream& operator<< (std::ostream& os, const typename BezierCurve<T,n>::ControlPoint& k);
 
-template <typename T, unsigned int n>
+template <typename T, std::size_t n>
 std::ostream& operator<< (std::ostream& os, const BezierCurve<T,n>& bc);
 
-template <typename T, unsigned int n, unsigned int m>
+template <typename T, std::size_t n, std::size_t m>
+std::ostream& operator<< (std::ostream& os, const typename BezierSurface<T,n,m>::ControlPoint& k);
+
+template <typename T, std::size_t n, std::size_t m>
 std::ostream& operator<< (std::ostream& os, const BezierSurface<T,n,m>& bs);
 
 

@@ -44,8 +44,8 @@ std::ostream& operator<< (std::ostream& os, const glm::vec3& v)
 	return os;
 }
 
-template <typename T, unsigned int n>
-void print_bezier_eval(const BezierCurve<T,n>& bc, unsigned int t_count)
+template <typename T, std::size_t n>
+void print_bezier_eval(const BezierCurve<T,n>& bc, std::size_t t_count)
 {
 	std::vector<typename BezierCurve<T,n>::Vertex> vertices;
 	std::vector<unsigned int> indices;
@@ -60,8 +60,8 @@ void print_bezier_eval(const BezierCurve<T,n>& bc, unsigned int t_count)
 	std::cout << "\n";
 }
 
-template <typename T, unsigned int n, unsigned int m>
-void print_bezier_eval(const BezierSurface<T,n,m>& bs, unsigned int u_count, unsigned int v_count)
+template <typename T, std::size_t n, std::size_t m>
+void print_bezier_eval(const BezierSurface<T,n,m>& bs, std::size_t u_count, std::size_t v_count)
 {
 	std::vector<typename BezierSurface<T,n,m>::Vertex> vertices;
 	std::vector<unsigned int> indices;
