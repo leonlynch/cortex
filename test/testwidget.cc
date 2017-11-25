@@ -14,7 +14,7 @@
 TestWidget::TestWidget(QWidget* parent)
 : QOpenGLWidget(parent)
 {
-	connect(&timer, SIGNAL(timeout()), SLOT(doUpdate()));
+	connect(&timer, &QTimer::timeout, this, &TestWidget::doUpdate);
 }
 
 TestWidget::~TestWidget()

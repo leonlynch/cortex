@@ -8,7 +8,6 @@
  */
 
 #include <QtGui/QGuiApplication>
-#include <QtCore/QTimer>
 
 #include "testwindow.h"
 
@@ -18,9 +17,7 @@ int main(int argc, char** argv)
 
 	QSurfaceFormat format(QSurfaceFormat::DebugContext);
 	format.setRenderableType(QSurfaceFormat::OpenGL);
-	format.setVersion(3, 3);
-	format.setProfile(QSurfaceFormat::CoreProfile);
-	format.setDepthBufferSize(32);
+	format.setProfile(QSurfaceFormat::CompatibilityProfile); // Core profile is only supported for QOpenGLWindow from Qt-5.9 due to QPainter limitations
 	format.setSwapBehavior(QSurfaceFormat::DoubleBuffer);
 	QSurfaceFormat::setDefaultFormat(format);
 

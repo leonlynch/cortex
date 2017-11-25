@@ -14,7 +14,7 @@
 TestWindow::TestWindow(QWindow* parent)
 : QOpenGLWindow(QOpenGLWindow::NoPartialUpdate, parent)
 {
-	connect(&timer, SIGNAL(timeout()), SLOT(doUpdate()));
+	connect(&timer, &QTimer::timeout, this, &TestWindow::doUpdate);
 }
 
 TestWindow::~TestWindow()
