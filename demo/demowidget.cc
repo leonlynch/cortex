@@ -9,6 +9,9 @@
 
 #include "demowidget.h"
 
+// TODO: remove test scene
+#include "../test/scene.h"
+
 DemoWidget::DemoWidget(QWidget* parent)
 : QOpenGLWidget(parent)
 {
@@ -21,6 +24,8 @@ DemoWidget::~DemoWidget()
 
 void DemoWidget::initializeGL()
 {
+	int r;
+
 	// emit OpenGL version string
 	const GLubyte* version_str;
 	version_str = glGetString(GL_VERSION);
@@ -33,21 +38,42 @@ void DemoWidget::initializeGL()
 	}
 
 	// TODO: initialize scene
+
+	// TODO: remove test scene
+	r = scene_init();
+	if (r) {
+		error("Failed to initialize scene");
+		return;
+	}
+	r = scene_load_resources();
+	if (r) {
+		error("Failed to load scene resources");
+		return;
+	}
 }
 
 void DemoWidget::resizeGL(int width, int height)
 {
 	// TODO: resize scene
+
+	// TODO: remove test scene
+	scene_resize(width, height);
 }
 
 void DemoWidget::paintGL()
 {
 	// TODO: render scene
+
+	// TODO: remove test scene
+	scene_render();
 }
 
 void DemoWidget::doUpdate()
 {
 	// TODO: update scene
+
+	// TODO: remove test scene
+	scene_update();
 
 	this->update();
 }
