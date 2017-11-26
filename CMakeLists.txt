@@ -17,6 +17,7 @@ if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
 endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
+find_package(Git REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(GLEW REQUIRED)
 find_package(GLM 0.9.5 REQUIRED)
@@ -26,5 +27,17 @@ find_package(Qt5Widgets 5.4 REQUIRED)
 find_package(GLUT REQUIRED)
 find_package(glfw3 3.2 REQUIRED)
 
+execute_process(
+	COMMAND ${GIT_EXECUTABLE} describe --all
+	OUTPUT_VARIABLE GIT_DESCRIBE
+	OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+execute_process(
+	COMMAND date -Is
+	OUTPUT_VARIABLE BUILD_DATE
+	OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
 add_subdirectory(src)
 add_subdirectory(test)
+add_subdirectory(demo)

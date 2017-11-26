@@ -1,0 +1,16 @@
+/**
+ * @file version.h
+ *
+ * Copyright (c) 2013 Leon Lynch
+ *
+ * This file is licensed under the terms of the MIT license.
+ * See LICENSE file.
+ */
+
+#ifndef __VERSION_H__
+#define __VERSION_H__
+
+#define VERSION "@VERSION@"
+#define BUILD_DATE "@BUILD_DATE@"
+
+#endif
