@@ -12,6 +12,7 @@
 DemoWidget::DemoWidget(QWidget* parent)
 : QOpenGLWidget(parent)
 {
+	connect(&timer, &QTimer::timeout, this, &DemoWidget::doUpdate);
 }
 
 DemoWidget::~DemoWidget()
@@ -49,4 +50,20 @@ void DemoWidget::doUpdate()
 	// TODO: update scene
 
 	this->update();
+}
+
+void DemoWidget::setAnimation(bool enabled)
+{
+	emit log(QString::asprintf("%s(); enabled=%d", __FUNCTION__, enabled));
+	if (enabled) {
+		timer.start();
+	} else {
+		timer.stop();
+	}
+}
+
+void DemoWidget::setAnimationInterval(int interval)
+{
+	emit log(QString::asprintf("%s(); interval=%d", __FUNCTION__, interval));
+	timer.setInterval(interval);
 }

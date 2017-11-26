@@ -11,11 +11,15 @@
 #define __DEMO_WIDGET_H__
 
 #include <QtWidgets/QOpenGLWidget>
+#include <QtCore/QTimer>
 #include <QtCore/QString>
 
 class DemoWidget : public QOpenGLWidget
 {
 	Q_OBJECT
+
+private:
+	QTimer timer;
 
 public:
 	explicit DemoWidget(QWidget* parent = 0);
@@ -28,6 +32,8 @@ protected:
 
 public slots:
 	virtual void doUpdate();
+	void setAnimation(bool enabled);
+	void setAnimationInterval(int interval);
 
 signals:
 	void log(const QString& msg);

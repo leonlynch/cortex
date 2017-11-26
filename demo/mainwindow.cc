@@ -19,7 +19,13 @@ MainWindow::MainWindow(QWidget* parent)
 
 	applicationVersionStr->setText(VERSION);
 
+	connect(animationCheckBox, &QCheckBox::stateChanged, animationIntervalSpinBox, &QSpinBox::setEnabled);
+
 	demowidget = new DemoWidget(this);
+	demowidget->setAnimation(animationCheckBox->isChecked());
+	demowidget->setAnimationInterval(animationIntervalSpinBox->value());
+	connect(animationCheckBox, &QCheckBox::stateChanged, demowidget, &DemoWidget::setAnimation);
+	connect(animationIntervalSpinBox, SIGNAL(valueChanged(int)), demowidget, SLOT(setAnimationInterval(int)));
 	connect(demowidget, &DemoWidget::log, this, &MainWindow::appendLog);
 	connect(demowidget, &DemoWidget::error, this, &MainWindow::appendError);
 	connect(demowidget, &DemoWidget::versionString, openglVersionStr, &QLabel::setText);
