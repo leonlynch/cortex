@@ -135,18 +135,14 @@ int scene_init(void)
 	if (!version) {
 		fprintf(stderr, "GL version not available\n");
 		return -1;
-	} else {
-		printf("%s\n", version);
 	}
+	printf("%s\n", version);
 
-	glewExperimental = GL_TRUE;
 	GLenum res = glewInit();
 	if (res != GLEW_OK) {
 		fprintf(stderr, "glewInit(): '%s'\n", glewGetErrorString(res));
 		return -1;
 	}
-
-	ready = true;
 
 	// debugging
 	if (GLEW_KHR_debug) {
@@ -161,6 +157,8 @@ int scene_init(void)
 	// back face culling
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
+
+	ready = true;
 
 	return 0;
 }
