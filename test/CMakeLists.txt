@@ -32,3 +32,6 @@ add_executable(bezier_test bezier_test.cc)
 
 add_executable(teaset_test teaset_test.cc)
 target_link_libraries(teaset_test cortex)
+
+add_executable(assimp_test assimp_test.cc)
+target_link_libraries(assimp_test ${ASSIMP_LIBRARIES})

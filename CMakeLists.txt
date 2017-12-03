@@ -27,6 +27,13 @@ find_package(Qt5Widgets 5.4 REQUIRED)
 find_package(GLUT REQUIRED)
 find_package(glfw3 3.2 REQUIRED)
 
+find_package(assimp 3.1.1)
+if (NOT assimp_FOUND)
+	# workaround for broken Findassimp.cmake
+	find_package(PkgConfig REQUIRED)
+	pkg_search_module(ASSIMP REQUIRED assimp>=3.1.1)
+endif()
+
 execute_process(
 	COMMAND ${GIT_EXECUTABLE} describe --all
 	OUTPUT_VARIABLE GIT_DESCRIBE
