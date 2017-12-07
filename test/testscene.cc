@@ -1,5 +1,5 @@
 /**
- * @file scene.cc
+ * @file testscene.cc
  *
  * Copyright (c) 2013 Leon Lynch
  *
@@ -7,7 +7,7 @@
  * See LICENSE file.
  */
 
-#include "scene.h"
+#include "testscene.h"
 
 #include <cstdio>
 #include <cstring>

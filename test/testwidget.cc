@@ -9,7 +9,7 @@
 
 #include "testwidget.h"
 
-#include "scene.h"
+#include "testscene.h"
 
 TestWidget::TestWidget(QWidget* parent)
 : QOpenGLWidget(parent)

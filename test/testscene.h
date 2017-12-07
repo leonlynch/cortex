@@ -1,5 +1,5 @@
 /**
- * @file scene.h
+ * @file testscene.h
  *
  * Copyright (c) 2013 Leon Lynch
  *

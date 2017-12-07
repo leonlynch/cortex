@@ -9,7 +9,7 @@
 
 #include "testwindow.h"
 
-#include "scene.h"
+#include "testscene.h"
 
 TestWindow::TestWindow(QWindow* parent)
 : QOpenGLWindow(QOpenGLWindow::NoPartialUpdate, parent)

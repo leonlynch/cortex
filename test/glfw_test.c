@@ -12,7 +12,7 @@
 
 #include <GLFW/glfw3.h>
 
-#include "scene.h"
+#include "testscene.h"
 
 static void glfw_error_func(int error, const char* description)
 {

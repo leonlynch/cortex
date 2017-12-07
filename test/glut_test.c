@@ -10,7 +10,7 @@
 #include <GL/glut.h>
 #include <GL/freeglut_ext.h>
 
-#include "scene.h"
+#include "testscene.h"
 
 static void reshape_func(int width, int height)
 {

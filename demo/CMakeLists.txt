@@ -20,7 +20,7 @@ add_executable(cortex_demo
 	demowidget.cc
 	${CORTEX_DEMO_UI}
 	${CORTEX_DEMO_MOC}
-	../test/scene.cc # TODO: remove
+	../test/testscene.cc # TODO: remove
 )
 target_link_libraries(cortex_demo
 	Qt5::Widgets

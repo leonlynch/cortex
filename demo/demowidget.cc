@@ -10,7 +10,7 @@
 #include "demowidget.h"
 
 // TODO: remove test scene
-#include "../test/scene.h"
+#include "../test/testscene.h"
 
 DemoWidget::DemoWidget(QWidget* parent)
 : QOpenGLWidget(parent)
