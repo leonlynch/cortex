@@ -14,6 +14,7 @@
 
 #include <string>
 #include <map>
+#include <vector>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -217,7 +218,7 @@ static GLuint scene_load_shader(const std::string& filename, GLenum shader_type)
 	GLuint shader;
 	const char* source_ptr;
 	GLint info_log_len = 0;
-	GLchar* info_log = NULL;
+	std::vector<GLchar> info_log;
 	GLint compile_status = GL_FALSE;
 
 	r = scene_read_shader(filename, source);
@@ -237,13 +238,9 @@ static GLuint scene_load_shader(const std::string& filename, GLenum shader_type)
 
 	// retrieve shader info log
 	glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &info_log_len);
-	if (info_log_len < 0) {
-		fprintf(stderr, "glGetShaderiv(GL_INFO_LOG_LENGTH) failed\n");
-		goto error2;
-	}
 	if (info_log_len > 1) {
-		info_log = new GLchar[info_log_len];
-		glGetShaderInfoLog(shader, info_log_len, NULL, info_log);
+		info_log.resize(info_log_len);
+		glGetShaderInfoLog(shader, info_log.size(), NULL, info_log.data());
 	}
 
 	// check shader compile status
@@ -257,21 +254,16 @@ static GLuint scene_load_shader(const std::string& filename, GLenum shader_type)
 		glGetShaderSource(shader, sizeof(shader_source), NULL, shader_source);
 		fprintf(stderr, "%s\n", shader_source);
 
-		if (info_log) {
-			fprintf(stderr, "%s: %s\n", filename.c_str(), info_log);
+		if (!info_log.empty()) {
+			fprintf(stderr, "%s: %s\n", filename.c_str(), info_log.data());
 		}
 
-		goto error3;
-	} else if (info_log) {
-		fprintf(stderr, "%s: %s\n", filename.c_str(), info_log);
+		goto error2;
+	} else if (!info_log.empty()) {
+		printf("%s: %s\n", filename.c_str(), info_log.data());
 	}
 
 	goto exit;
-
-error3:
-	if (info_log)
-		delete[] info_log;
-	info_log = NULL;
 
 error2:
 	glDeleteShader(shader);
@@ -314,6 +306,11 @@ static GLuint scene_load_vao(const void* vertex_data, size_t vertex_data_len, co
 
 int scene_load_resources(void)
 {
+	GLint link_status = GL_FALSE;
+	GLint validate_status = GL_FALSE;
+	GLint info_log_len;
+	std::vector<GLchar> info_log;
+
 	program = glCreateProgram();
 	if (!program) {
 		fprintf(stderr, "glCreateProgram() failed\n");
@@ -337,28 +334,37 @@ int scene_load_resources(void)
 	glAttachShader(program, fragment_shader);
 
 	// link program
-	GLint link_status;
 	glLinkProgram(program);
+	info_log_len = 0;
+	info_log.clear();
+	glGetProgramiv(program, GL_INFO_LOG_LENGTH, &info_log_len);
+	if (info_log_len > 1) {
+		info_log.resize(info_log_len);
+		glGetProgramInfoLog(program, info_log.size(), NULL, info_log.data());
+	}
+
 	glGetProgramiv(program, GL_LINK_STATUS, &link_status);
 	if (link_status != GL_TRUE) {
-		GLint info_log_len = 0;
-		glGetProgramiv(program, GL_INFO_LOG_LENGTH, &info_log_len);
-		GLchar info_log[info_log_len];
-		glGetProgramInfoLog(program, sizeof(info_log), NULL, info_log);
-		fprintf(stderr, "Error linking program: %s\n", info_log);
+		fprintf(stderr, "Error linking shader program:\n%s\n", info_log.data());
 		return -1;
+	}
+	if (!info_log.empty()) {
+		printf("Shader program log:\n%s\n", info_log.data());
 	}
 
 	// validate program
-	GLint validate_status;
 	glValidateProgram(program);
+	info_log_len = 0;
+	info_log.clear();
+	glGetProgramiv(program, GL_INFO_LOG_LENGTH, &info_log_len);
+	if (info_log_len > 1) {
+		info_log.resize(info_log_len);
+		glGetProgramInfoLog(program, info_log.size(), NULL, info_log.data());
+	}
+
 	glGetProgramiv(program, GL_VALIDATE_STATUS, &validate_status);
 	if (validate_status != GL_TRUE) {
-		GLint info_log_len = 0;
-		glGetProgramiv(program, GL_INFO_LOG_LENGTH, &info_log_len);
-		GLchar info_log[info_log_len];
-		glGetProgramInfoLog(program, sizeof(info_log), NULL, info_log);
-		fprintf(stderr, "Invalid program: %s\n", info_log);
+		fprintf(stderr, "Invalid program:\n%s\n", info_log.data());
 		return -1;
 	}
 
