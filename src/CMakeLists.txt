@@ -13,4 +13,8 @@ include_directories(${LIBCORTEX_INCLUDE_DIR})
 add_library(cortex
 	teaset.cc
 	internal/teaset_geometry.cc
+	sceneloader.cc
+	entity.cc
+	mesh.cc
 )
+target_link_libraries(cortex ${ASSIMP_LIBRARIES})
