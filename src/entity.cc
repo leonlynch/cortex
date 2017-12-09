@@ -8,6 +8,7 @@
  */
 
 #include "entity.h"
+#include "material.h"
 #include "mesh.h"
 
 Entity::Entity(const std::string name)
@@ -17,6 +18,9 @@ Entity::Entity(const std::string name)
 
 Entity::~Entity()
 {
+	for (auto&& itr : materials)
+		delete itr;
+
 	for (auto&& itr : meshes)
 		delete itr;
 }

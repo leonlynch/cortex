@@ -9,6 +9,7 @@
 
 #include "sceneloader.h"
 #include "entity.h"
+#include "material.h"
 #include "mesh.h"
 
 #include <assimp/DefaultLogger.hpp>
@@ -30,6 +31,74 @@ SceneLoader::SceneLoader(bool logger, bool verbose)
 SceneLoader::~SceneLoader()
 {
 	Assimp::DefaultLogger::kill();
+}
+
+static bool loadMaterials(const aiScene* scene, Entity* entity)
+{
+	entity->materials.reserve(scene->mNumMaterials);
+	for (unsigned int i = 0; i < scene->mNumMaterials; ++i) {
+		const aiMaterial* ai_material = scene->mMaterials[i];
+
+		aiReturn ret;
+		int twosided;
+		enum aiShadingMode shading;
+		aiColor3D ambient;
+		aiColor3D diffuse;
+		aiColor3D specular;
+		float shininess;
+		float shininess_strength;
+
+		Material* material = new Material;
+
+		ret = ai_material->Get(AI_MATKEY_TWOSIDED, twosided);
+		if (ret == aiReturn_SUCCESS) {
+			material->twosided = !!twosided;
+		}
+
+		ret = ai_material->Get(AI_MATKEY_SHADING_MODEL, shading);
+		if (ret == aiReturn_SUCCESS) {
+			switch (shading) {
+				case aiShadingMode_Gouraud: material->shading_mode = Material::ShadingMode::Gouraud; break;
+				case aiShadingMode_Phong: material->shading_mode = Material::ShadingMode::BlinnPhong; break;
+				case aiShadingMode_Blinn: material->shading_mode = Material::ShadingMode::BlinnPhong; break;
+				default: material->shading_mode = Material::ShadingMode::None; break;
+			}
+		}
+
+		ret = ai_material->Get(AI_MATKEY_COLOR_AMBIENT, ambient);
+		if (ret == aiReturn_SUCCESS) {
+			material->ambient = Material::color3_t(ambient.r, ambient.g, ambient.b);
+		}
+
+		ret = ai_material->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse);
+		if (ret == aiReturn_SUCCESS) {
+			material->diffuse = Material::color3_t(diffuse.r, diffuse.g, diffuse.b);
+		}
+
+		ret = ai_material->Get(AI_MATKEY_COLOR_SPECULAR, specular);
+		if (ret == aiReturn_SUCCESS) {
+			material->specular = Material::color3_t(specular.r, specular.g, specular.b);
+		}
+
+		ret = ai_material->Get(AI_MATKEY_SHININESS, shininess);
+		if (ret == aiReturn_SUCCESS) {
+			material->shininess = shininess;
+		}
+
+		ret = ai_material->Get(AI_MATKEY_SHININESS_STRENGTH, shininess_strength);
+		if (ret == aiReturn_SUCCESS) {
+			material->shininess *= shininess_strength;
+		}
+
+		// update shading mode
+		if (material->shading_mode == Material::ShadingMode::None) {
+			material->setDefaultShadingMode();
+		}
+
+		entity->materials.push_back(material);
+	}
+
+	return true;
 }
 
 static bool loadMeshesFromNode(const aiScene* scene, aiMatrix4x4 current_transformation, const aiNode* node, Entity* entity)
@@ -98,6 +167,9 @@ static bool loadMeshesFromNode(const aiScene* scene, aiMatrix4x4 current_transfo
 			mesh->index_data.insert(mesh->index_data.end(), ai_face.mIndices, ai_face.mIndices + ai_face.mNumIndices);
 		}
 
+		// add material
+		mesh->material = entity->materials[ai_mesh->mMaterialIndex];
+
 		// store mesh
 		entity->meshes.push_back(mesh);
 	}
@@ -122,6 +194,13 @@ Entity* SceneLoader::createEntityFromFile(const std::string& name, const std::st
 	}
 
 	Entity* entity = new Entity(name);
+
+	ret = loadMaterials(scene, entity);
+	if (!ret) {
+		delete entity;
+		return nullptr;
+	}
+
 	ret = loadMeshesFromNode(scene, aiMatrix4x4(), scene->mRootNode, entity);
 	if (!ret) {
 		delete entity;

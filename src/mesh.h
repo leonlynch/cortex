@@ -13,6 +13,9 @@
 #include <cstddef>
 #include <vector>
 
+// Forward declaration
+class Material;
+
 class Mesh
 {
 public:
@@ -35,6 +38,7 @@ public:
 	// populated by caller
 	std::vector<float> vertex_data;
 	std::vector<unsigned int> index_data;
+	Material* material;
 
 public:
 	/**

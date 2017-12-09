@@ -11,15 +11,18 @@
 #define CORTEX_ENTITY
 
 #include <string>
+#include <vector>
 #include <list>
 
-// Forward declaration
+// Forward declarations
+class Material;
 class Mesh;
 
 class Entity
 {
 public:
 	std::string name;
+	std::vector<Material*> materials;
 	std::list<Mesh*> meshes;
 
 public:

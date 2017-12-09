@@ -15,6 +15,7 @@ add_library(cortex
 	internal/teaset_geometry.cc
 	sceneloader.cc
 	entity.cc
+	material.cc
 	mesh.cc
 )
 target_link_libraries(cortex ${ASSIMP_LIBRARIES})
