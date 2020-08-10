@@ -5,7 +5,7 @@
 # See LICENSE file.
 ##############################################################################
 
-cmake_minimum_required(VERSION 2.8.11)
+cmake_minimum_required(VERSION 3.11)
 
 set(VERSION ${GIT_DESCRIBE})
 configure_file(version.h.in version.h)
@@ -24,6 +24,6 @@ add_executable(cortex_demo
 )
 target_link_libraries(cortex_demo
 	Qt5::Widgets
-	${GLEW_LIBRARIES}
-	${OPENGL_gl_LIBRARY}
+	GLEW::GLEW
+	OpenGL::GL
 )
