@@ -34,7 +34,7 @@ add_executable(teaset_test teaset_test.cc)
 target_link_libraries(teaset_test cortex)
 
 add_executable(assimp_test assimp_test.cc)
-target_link_libraries(assimp_test ${ASSIMP_LIBRARIES})
+target_link_libraries(assimp_test ${assimp_LIBRARIES})
 
 add_executable(cortex_test cortex_test.cc)
 target_link_libraries(cortex_test cortex)

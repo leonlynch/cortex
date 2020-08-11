@@ -18,4 +18,4 @@ add_library(cortex
 	material.cc
 	mesh.cc
 )
-target_link_libraries(cortex ${ASSIMP_LIBRARIES})
+target_link_libraries(cortex ${assimp_LIBRARIES})
