@@ -427,10 +427,10 @@ void scene_render(void)
 
 	// uniform matrices
 	glm::mat4 m_projection = glm::perspective(glm::radians(45.0f), width / (float)height, 0.1f, 100.0f);
-	glm::mat4 m_view = glm::translate(glm::mat4(), glm::vec3(0.0f, 0.0f, -5.0f));
-	glm::mat4 m_model_rotate_x = glm::rotate(glm::mat4(), glm::radians((float)tick), glm::vec3(1.0f, 0.0f, 0.0f));
-	glm::mat4 m_model_rotate_y = glm::rotate(glm::mat4(), glm::radians((float)tick), glm::vec3(0.0f, 1.0f, 0.0f));
-	glm::mat4 m_model_rotate_z = glm::rotate(glm::mat4(), glm::radians((float)tick / 2.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	glm::mat4 m_view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -5.0f));
+	glm::mat4 m_model_rotate_x = glm::rotate(glm::mat4(1.0f), glm::radians((float)tick), glm::vec3(1.0f, 0.0f, 0.0f));
+	glm::mat4 m_model_rotate_y = glm::rotate(glm::mat4(1.0f), glm::radians((float)tick), glm::vec3(0.0f, 1.0f, 0.0f));
+	glm::mat4 m_model_rotate_z = glm::rotate(glm::mat4(1.0f), glm::radians((float)tick / 2.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 	glm::mat4 m_model = m_model_rotate_z * m_model_rotate_y * m_model_rotate_x;
 	glm::mat4 m_modelview = m_view * m_model;
 	glm::mat4 m_mvp = m_projection * m_modelview;
