@@ -154,8 +154,9 @@ int scene_init(void)
 	}
 
 	// debugging
-	if (GLEW_KHR_debug) {
+	if (GLEW_KHR_debug) { // KHR_debug is part of OpenGL-4.3 core
 		glDebugMessageCallback(&scene_debug, NULL);
+		glEnable(GL_DEBUG_OUTPUT);
 		std::printf("Debug enabled\n");
 	}
 
