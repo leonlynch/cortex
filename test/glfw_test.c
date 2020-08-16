@@ -33,7 +33,7 @@ static void glfw_key_func(GLFWwindow* window, int key, int scancode, int action,
 
 int main(int argc, char** argv)
 {
-	printf("%s\n", glfwGetVersionString());
+	printf("GLFW: %s\n", glfwGetVersionString());
 
 	glfwSetErrorCallback(glfw_error_func);
 

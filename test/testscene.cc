@@ -137,7 +137,15 @@ int scene_init(void)
 		fprintf(stderr, "GL version not available\n");
 		return -1;
 	}
-	printf("%s\n", version);
+	printf("OpenGL: %s\n", version);
+
+	const GLubyte* renderer;
+	renderer = glGetString(GL_RENDERER);
+	if (!renderer) {
+		fprintf(stderr, "GL renderer not available\n");
+		return -1;
+	}
+	printf("Renderer: %s\n", renderer);
 
 	GLenum res = glewInit();
 	if (res != GLEW_OK) {
