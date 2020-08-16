@@ -1,5 +1,5 @@
 /**
- * @file simple_fs.glsl
+ * @file simple.frag.glsl
  *
  * Copyright (c) 2013 Leon Lynch
  *
@@ -7,7 +7,7 @@
  * See LICENSE file.
  */
 
-#version 130
+#version 330 core
 
 uniform mat4 m_mvp;
 uniform mat4 m_modelview;

@@ -332,13 +332,13 @@ int scene_load_resources(void)
 		return -1;
 	}
 
-	vertex_shader = scene_load_shader("test/simple_vs.glsl", GL_VERTEX_SHADER);
+	vertex_shader = scene_load_shader("test/simple.vert.glsl", GL_VERTEX_SHADER);
 	if (!vertex_shader) {
 		fprintf(stderr, "Failed to load vertex shader\n");
 		return -1;
 	}
 
-	fragment_shader = scene_load_shader("test/simple_fs.glsl", GL_FRAGMENT_SHADER);
+	fragment_shader = scene_load_shader("test/simple.frag.glsl", GL_FRAGMENT_SHADER);
 	if (!fragment_shader) {
 		fprintf(stderr, "Failed to load fragment shader\n");
 		return -1;
