@@ -39,7 +39,6 @@ static unsigned int tick = 0;
 static GLuint program = 0;
 static GLuint vertex_shader = 0;
 static GLuint fragment_shader = 0;
-static GLuint vao = 0;
 
 // uniform location map
 typedef std::map<std::string, GLint> uniform_location_t;
@@ -57,10 +56,18 @@ static GLint attribute_max_length = 0;
 static GLint fragdata_location = 0;
 
 struct vertex_t {
-	GLfloat position[3];
-	GLfloat normal[3];
+	glm::vec3 position;
+	glm::vec3 normal;
 };
 
+struct mesh_t {
+	GLuint vao = 0;
+	GLuint vbo = 0;
+	GLuint ibo = 0;
+	GLsizei index_count = 0;
+};
+
+// cube vertices, grouped by face
 static struct vertex_t vertex_data[] = {
 	{ {  1.0f,  1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f } },
 	{ { -1.0f,  1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f } },
@@ -93,6 +100,7 @@ static struct vertex_t vertex_data[] = {
 	{ {  1.0f, -1.0f, -1.0f }, {  0.0f, -1.0f,  0.0f } },
 };
 
+// cube vertex indices, grouped by face
 static GLuint index_data[] = {
 	0, 1, 3,
 	2, 3, 1,
@@ -112,6 +120,9 @@ static GLuint index_data[] = {
 	20, 21, 23,
 	22, 23, 21,
 };
+
+// cube mesh
+static mesh_t cube_mesh;
 
 static void scene_debug(
 	GLenum source,
@@ -284,17 +295,13 @@ exit:
 	return shader;
 }
 
-static GLuint scene_load_vao(const void* vertex_data, size_t vertex_data_len, const void* index_data, size_t index_data_len)
+static void scene_load_mesh(const void* vertex_data, size_t vertex_data_len, const void* index_data, size_t index_data_len, mesh_t* mesh)
 {
-	GLuint vao;
-	GLuint vbo;
-	GLuint ibo;
+	glGenVertexArrays(1, &mesh->vao);
+	glBindVertexArray(mesh->vao);
 
-	glGenVertexArrays(1, &vao);
-	glBindVertexArray(vao);
-
-	glGenBuffers(1, &vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	glGenBuffers(1, &mesh->vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
 	glBufferData(GL_ARRAY_BUFFER, vertex_data_len, vertex_data, GL_STATIC_DRAW);
 
 	glEnableVertexAttribArray(attribute_location["v_position"]);
@@ -302,15 +309,14 @@ static GLuint scene_load_vao(const void* vertex_data, size_t vertex_data_len, co
 	glEnableVertexAttribArray(attribute_location["v_normal"]);
 	glVertexAttribPointer(attribute_location["v_normal"], 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex_t), (const GLvoid*)offsetof(struct vertex_t, normal));
 
-	glGenBuffers(1, &ibo);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+	glGenBuffers(1, &mesh->ibo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->ibo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, index_data_len, index_data, GL_STATIC_DRAW);
+	mesh->index_count = index_data_len / sizeof(GLuint);
 
 	glBindVertexArray(0);
 
-	printf("%s(); vao=%u; vbo=%u; ibo=%u\n", __FUNCTION__, vao, vbo, ibo);
-
-	return vao;
+	printf("%s(); vao=%u; vbo=%u; ibo=%u\n", __FUNCTION__, mesh->vao, mesh->vbo, mesh->ibo);
 }
 
 int scene_load_resources(void)
@@ -405,21 +411,43 @@ int scene_load_resources(void)
 	fragdata_location = glGetFragDataLocation(program, "color");
 	printf("%s(); fragdata='%s'; location=%d\n", __FUNCTION__, "color", fragdata_location);
 
-	vao = scene_load_vao(vertex_data, sizeof(vertex_data), index_data, sizeof(index_data));
+	// load cube mesh
+	scene_load_mesh(vertex_data, sizeof(vertex_data), index_data, sizeof(index_data), &cube_mesh);
 
 	return 0;
 }
 
+static void scene_unload_mesh(mesh_t* mesh)
+{
+	if (mesh->vao) {
+		glDeleteVertexArrays(1, &mesh->vao);
+		mesh->vao = 0;
+	}
+
+	if (mesh->vbo) {
+		glDeleteBuffers(1, &mesh->vbo);
+		mesh->vbo = 0;
+	}
+
+	if (mesh->ibo) {
+		glDeleteBuffers(1, &mesh->ibo);
+		mesh->ibo = 0;
+	}
+}
+
 void scene_unload_resources(void)
 {
-	if (vao)
-		glDeleteVertexArrays(1, &vao);
-	if (vertex_shader)
+	scene_unload_mesh(&cube_mesh);
+
+	if (vertex_shader) {
 		glDeleteShader(vertex_shader);
-	if (fragment_shader)
+	}
+	if (fragment_shader) {
 		glDeleteShader(fragment_shader);
-	if (program)
+	}
+	if (program) {
 		glDeleteProgram(program);
+	}
 }
 
 void scene_update(void)
@@ -472,8 +500,8 @@ void scene_render(void)
 	glUniform1f(uniform_location["material.shininess"], material_shininess);
 
 	// render
-	glBindVertexArray(vao);
-	glDrawElements(GL_TRIANGLES, sizeof(index_data) / sizeof(index_data[0]), GL_UNSIGNED_INT, 0);
+	glBindVertexArray(cube_mesh.vao);
+	glDrawElements(GL_TRIANGLES, cube_mesh.index_count, GL_UNSIGNED_INT, 0);
 
 	// cleanup
 	glBindVertexArray(0);
