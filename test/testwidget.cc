@@ -51,7 +51,7 @@ void TestWidget::resizeGL(int width, int height)
 
 void TestWidget::paintGL()
 {
-    scene_render();
+    scene_render(SCENE_DEMO_CUBE);
 }
 
 void TestWidget::doUpdate()

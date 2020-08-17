@@ -30,6 +30,9 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/string_cast.hpp>
 
+#include "bezier.h"
+#include "teaset.h"
+
 static bool ready = 0;
 static int width = 0;
 static int height = 0;
@@ -62,13 +65,16 @@ struct vertex_t {
 
 struct mesh_t {
 	GLuint vao = 0;
+
 	GLuint vbo = 0;
+	GLsizei vertex_count = 0;
+
 	GLuint ibo = 0;
 	GLsizei index_count = 0;
 };
 
 // cube vertices, grouped by face
-static struct vertex_t vertex_data[] = {
+static struct vertex_t cube_vertices[] = {
 	{ {  1.0f,  1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f } },
 	{ { -1.0f,  1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f } },
 	{ { -1.0f, -1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f } },
@@ -101,7 +107,7 @@ static struct vertex_t vertex_data[] = {
 };
 
 // cube vertex indices, grouped by face
-static GLuint index_data[] = {
+static unsigned int cube_indices[] = {
 	0, 1, 3,
 	2, 3, 1,
 
@@ -123,6 +129,37 @@ static GLuint index_data[] = {
 
 // cube mesh
 static mesh_t cube_mesh;
+
+// bezier surface mesh
+static glm::vec3 bezier_surface_data[4][4] = {
+	{ { 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 2.0f, 0.0f }, { 0.0f, 3.0f, 0.0f }, },
+	{ { 1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 2.0f, 1.0f }, { 1.0f, 3.0f, 0.0f }, },
+	{ { 2.0f, 0.0f, 0.0f }, { 2.0f, 1.0f, 1.0f }, { 2.0f, 2.0f, 1.0f }, { 2.0f, 3.0f, 0.0f }, },
+	{ { 3.0f, 0.0f, 0.0f }, { 3.0f, 1.0f, 0.0f }, { 3.0f, 2.0f, 0.0f }, { 3.0f, 3.0f, 0.0f }, },
+};
+
+static BezierSurface<glm::vec3, 3, 3> bezier_surface(bezier_surface_data);
+static std::vector<vertex_t> bezier_surface_vertices;
+static std::vector<unsigned int> bezier_surface_indices;
+static mesh_t bezier_surface_mesh;
+
+// Utah teapot
+static Teapot teapot;
+static std::vector<vertex_t> teapot_vertices;
+static std::vector<unsigned int> teapot_indices;
+static mesh_t teapot_mesh;
+
+// Utah teacup
+static Teacup teacup;
+static std::vector<vertex_t> teacup_vertices;
+static std::vector<unsigned int> teacup_indices;
+static mesh_t teacup_mesh;
+
+// Utah teaspoon
+static Teaspoon teaspoon;
+static std::vector<vertex_t> teaspoon_vertices;
+static std::vector<unsigned int> teaspoon_indices;
+static mesh_t teaspoon_mesh;
 
 static void scene_debug(
 	GLenum source,
@@ -303,6 +340,7 @@ static void scene_load_mesh(const void* vertex_data, size_t vertex_data_len, con
 	glGenBuffers(1, &mesh->vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
 	glBufferData(GL_ARRAY_BUFFER, vertex_data_len, vertex_data, GL_STATIC_DRAW);
+	mesh->vertex_count = vertex_data_len / sizeof(struct vertex_t);
 
 	glEnableVertexAttribArray(attribute_location["v_position"]);
 	glVertexAttribPointer(attribute_location["v_position"], 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex_t), 0);
@@ -312,7 +350,7 @@ static void scene_load_mesh(const void* vertex_data, size_t vertex_data_len, con
 	glGenBuffers(1, &mesh->ibo);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->ibo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, index_data_len, index_data, GL_STATIC_DRAW);
-	mesh->index_count = index_data_len / sizeof(GLuint);
+	mesh->index_count = index_data_len / sizeof(unsigned int);
 
 	glBindVertexArray(0);
 
@@ -412,7 +450,47 @@ int scene_load_resources(void)
 	printf("%s(); fragdata='%s'; location=%d\n", __FUNCTION__, "color", fragdata_location);
 
 	// load cube mesh
-	scene_load_mesh(vertex_data, sizeof(vertex_data), index_data, sizeof(index_data), &cube_mesh);
+	scene_load_mesh(cube_vertices, sizeof(cube_vertices), cube_indices, sizeof(cube_indices), &cube_mesh);
+
+	// load bezier surface mesh
+	bezier_surface.tesselate(16, 16, bezier_surface_vertices, bezier_surface_indices);
+	scene_load_mesh(
+		bezier_surface_vertices.data(),
+		bezier_surface_vertices.size() * sizeof(decltype(bezier_surface_vertices)::value_type),
+		bezier_surface_indices.data(),
+		bezier_surface_indices.size() * sizeof(decltype(bezier_surface_indices)::value_type),
+		&bezier_surface_mesh
+	);
+
+	// load teapot mesh
+	teapot.tesselate(12, 12, teapot_vertices, teapot_indices);
+	scene_load_mesh(
+		teapot_vertices.data(),
+		teapot_vertices.size() * sizeof(decltype(teapot_vertices)::value_type),
+		teapot_indices.data(),
+		teapot_indices.size() * sizeof(decltype(teapot_indices)::value_type),
+		&teapot_mesh
+	);
+
+	// load teacup mesh
+	teacup.tesselate(8, 8, teacup_vertices, teacup_indices);
+	scene_load_mesh(
+		teacup_vertices.data(),
+		teacup_vertices.size() * sizeof(decltype(teacup_vertices)::value_type),
+		teacup_indices.data(),
+		teacup_indices.size() * sizeof(decltype(teacup_indices)::value_type),
+		&teacup_mesh
+	);
+
+	// load teaspoon mesh
+	teaspoon.tesselate(8, 8, teaspoon_vertices, teaspoon_indices);
+	scene_load_mesh(
+		teaspoon_vertices.data(),
+		teaspoon_vertices.size() * sizeof(decltype(teaspoon_vertices)::value_type),
+		teaspoon_indices.data(),
+		teaspoon_indices.size() * sizeof(decltype(teaspoon_indices)::value_type),
+		&teaspoon_mesh
+	);
 
 	return 0;
 }
@@ -438,6 +516,10 @@ static void scene_unload_mesh(mesh_t* mesh)
 void scene_unload_resources(void)
 {
 	scene_unload_mesh(&cube_mesh);
+	scene_unload_mesh(&bezier_surface_mesh);
+	scene_unload_mesh(&teapot_mesh);
+	scene_unload_mesh(&teacup_mesh);
+	scene_unload_mesh(&teaspoon_mesh);
 
 	if (vertex_shader) {
 		glDeleteShader(vertex_shader);
@@ -455,7 +537,7 @@ void scene_update(void)
 	++tick;
 }
 
-void scene_render(void)
+void scene_render(enum scene_demo_t scene_demo)
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -464,10 +546,10 @@ void scene_render(void)
 
 	// uniform matrices
 	glm::mat4 m_projection = glm::perspective(glm::radians(45.0f), width / (float)height, 0.1f, 100.0f);
-	glm::mat4 m_view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -5.0f));
-	glm::mat4 m_model_rotate_x = glm::rotate(glm::mat4(1.0f), glm::radians((float)tick), glm::vec3(1.0f, 0.0f, 0.0f));
-	glm::mat4 m_model_rotate_y = glm::rotate(glm::mat4(1.0f), glm::radians((float)tick), glm::vec3(0.0f, 1.0f, 0.0f));
-	glm::mat4 m_model_rotate_z = glm::rotate(glm::mat4(1.0f), glm::radians((float)tick / 2.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	glm::mat4 m_view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -8.0f));
+	glm::mat4 m_model_rotate_x = glm::rotate(glm::mat4(1.0f), glm::radians((float)tick / 2.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+	glm::mat4 m_model_rotate_y = glm::rotate(glm::mat4(1.0f), glm::radians((float)tick / 2.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	glm::mat4 m_model_rotate_z = glm::rotate(glm::mat4(1.0f), glm::radians((float)tick / 4.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 	glm::mat4 m_model = m_model_rotate_z * m_model_rotate_y * m_model_rotate_x;
 	glm::mat4 m_modelview = m_view * m_model;
 	glm::mat4 m_mvp = m_projection * m_modelview;
@@ -478,7 +560,7 @@ void scene_render(void)
 	glUniformMatrix3fv(uniform_location["m_normal"], 1, GL_FALSE, glm::value_ptr(m_normal));
 
 	// uniform light parameters
-	glm::vec4 light_position = glm::vec4(10.0f, 10.0f, 10.0f, 1.0f);
+	glm::vec4 light_position = glm::vec4(15.0f, 15.0f, 15.0f, 1.0f);
 	glm::vec3 light_ambient = glm::vec3(0.2f, 0.2f, 0.2f);
 	glm::vec3 light_diffuse = glm::vec3(0.8f, 0.8f, 0.8f);
 	glm::vec3 light_specular = glm::vec3(1.0f, 1.0f, 1.0f);
@@ -499,11 +581,31 @@ void scene_render(void)
 	glUniform3fv(uniform_location["material.specular"], 1, glm::value_ptr(material_specular));
 	glUniform1f(uniform_location["material.shininess"], material_shininess);
 
-	// render
-	glBindVertexArray(cube_mesh.vao);
-	glDrawElements(GL_TRIANGLES, cube_mesh.index_count, GL_UNSIGNED_INT, 0);
+	// determine current mesh
+	mesh_t* current_mesh = nullptr;
+	switch (scene_demo) {
+		case SCENE_DEMO_CUBE: current_mesh = &cube_mesh; break;
+		case SCENE_DEMO_BEZIER: current_mesh = &bezier_surface_mesh; break;
+		case SCENE_DEMO_TEAPOT: current_mesh = &teapot_mesh; break;
+		case SCENE_DEMO_TEACUP: current_mesh = &teacup_mesh; break;
+		case SCENE_DEMO_TEASPOON: current_mesh = &teaspoon_mesh; break;
+		default: current_mesh = &cube_mesh;
+	}
+
+	// render current mesh
+	glBindVertexArray(current_mesh->vao);
+	glDrawElements(GL_TRIANGLES, current_mesh->index_count, GL_UNSIGNED_INT, 0);
 
 	// cleanup
 	glBindVertexArray(0);
 	glUseProgram(0);
+}
+
+enum scene_demo_t scene_next_demo(enum scene_demo_t current_demo)
+{
+	if (current_demo < SCENE_DEMO_TEASPOON) {
+		return static_cast<scene_demo_t>(static_cast<int>(current_demo) + 1);
+	} else {
+		return SCENE_DEMO_CUBE;
+	}
 }

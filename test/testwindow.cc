@@ -51,7 +51,7 @@ void TestWindow::resizeGL(int width, int height)
 
 void TestWindow::paintGL()
 {
-	scene_render();
+	scene_render(SCENE_DEMO_CUBE);
 }
 
 void TestWindow::doUpdate()

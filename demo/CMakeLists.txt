@@ -23,6 +23,7 @@ add_executable(cortex_demo
 	../test/testscene.cc # TODO: remove
 )
 target_link_libraries(cortex_demo
+	cortex
 	Qt5::Widgets
 	GLEW::GLEW
 	OpenGL::GL

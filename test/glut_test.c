@@ -26,7 +26,7 @@ static void timer_func(int value)
 
 static void display_func(void)
 {
-	scene_render();
+	scene_render(SCENE_DEMO_CUBE);
 	glutSwapBuffers();
 }
 

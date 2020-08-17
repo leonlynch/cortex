@@ -78,7 +78,7 @@ int main(int argc, char** argv)
 	while (!glfwWindowShouldClose(window))
 	{
 		scene_update();
-		scene_render();
+		scene_render(SCENE_DEMO_CUBE);
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();

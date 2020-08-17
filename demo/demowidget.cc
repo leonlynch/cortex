@@ -65,7 +65,7 @@ void DemoWidget::paintGL()
 	// TODO: render scene
 
 	// TODO: remove test scene
-	scene_render();
+	scene_render(SCENE_DEMO_CUBE);
 }
 
 void DemoWidget::doUpdate()
