@@ -95,12 +95,6 @@ void Teaset::readData(const char* data, bool data_is_ccw)
 	}
 }
 
-void Teaset::tesselate(unsigned int u_count, unsigned int v_count, std::vector<BezierPatch::Vertex>& vertices, std::vector<unsigned int>& indices) const
-{
-	for (auto&& patch : patches)
-		patch.tesselate(12, 12, vertices, indices);
-}
-
 Teapot::Teapot()
 {
 	readData(teapot_geometry_str, false);

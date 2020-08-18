@@ -1,5 +1,5 @@
 /**
- * @file teaset_geometry.h
+ * @file teaset_geometry.cc
  *
  * Copyright (c) 2013 Leon Lynch
  *

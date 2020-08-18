@@ -7,8 +7,8 @@
  * See LICENSE file.
  */
 
-#ifndef __CORTEX_TEASET_H__
-#define __CORTEX_TEASET_H__
+#ifndef CORTEX_TEASET_H
+#define CORTEX_TEASET_H
 
 #include "glm/glm.hpp"
 
@@ -19,7 +19,7 @@
 class Teaset
 {
 public:
-	typedef BezierSurface<glm::vec3,3,3> BezierPatch;
+	using BezierPatch = BezierSurface<glm::vec3,3,3>;
 
 protected:
 	std::list<BezierPatch> patches;
@@ -29,7 +29,8 @@ protected:
 	void readData(const char* data, bool data_is_ccw);
 
 public:
-	void tesselate(unsigned int u_count, unsigned int v_count, std::vector<BezierPatch::Vertex>& vertices, std::vector<unsigned int>& indices) const;
+	template<typename VertexType, typename IndexType = unsigned int>
+	void tesselate(unsigned int u_count, unsigned int v_count, std::vector<VertexType>& vertices, std::vector<IndexType>& indices) const;
 };
 
 class Teapot : public Teaset
@@ -49,5 +50,8 @@ class Teaspoon : public Teaset
 public:
 	Teaspoon();
 };
+
+
+#include "teaset.tcc"
 
 #endif

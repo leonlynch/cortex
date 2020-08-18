@@ -7,8 +7,8 @@
  * See LICENSE file.
  */
 
-#ifndef __CORTEX_BEZIER_H__
-#define __CORTEX_BEZIER_H__
+#ifndef CORTEX_BEZIER_H
+#define CORTEX_BEZIER_H
 
 #include <cstddef>
 
@@ -18,7 +18,7 @@
 template <typename T, std::size_t n>
 struct BezierCurve
 {
-	typedef T ControlPoint;
+	using ControlPoint = T;
 
 	ControlPoint k[n + 1];
 
@@ -28,18 +28,14 @@ struct BezierCurve
 	T position(double t) const;
 	T normal(double t) const;
 
-	struct Vertex
-	{
-		T position;
-		T normal;
-	};
-	void tesselate(std::size_t t_count, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices) const;
+	template<typename VertexType, typename IndexType = unsigned int>
+	void tesselate(std::size_t t_count, std::vector<VertexType>& vertices, std::vector<IndexType>& indices) const;
 };
 
 template <typename T, std::size_t n, std::size_t m>
 struct BezierSurface
 {
-	typedef T ControlPoint;
+	using ControlPoint = T;
 
 	ControlPoint k[n + 1][m + 1];
 
@@ -49,12 +45,8 @@ struct BezierSurface
 	T position(double u, double v) const;
 	T normal(double u, double v) const;
 
-	struct Vertex
-	{
-		T position;
-		T normal;
-	};
-	void tesselate(std::size_t u_count, std::size_t v_count, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices) const;
+	template<typename VertexType, typename IndexType = unsigned int>
+	void tesselate(std::size_t u_count, std::size_t v_count, std::vector<VertexType>& vertices, std::vector<IndexType>& indices) const;
 };
 
 template <typename T, std::size_t n>

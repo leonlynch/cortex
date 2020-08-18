@@ -13,8 +13,8 @@
 
 #include <utility>
 
-#ifndef __CORTEX_BEZIER_TCC__
-#define __CORTEX_BEZIER_TCC__
+#ifndef CORTEX_BEZIER_TCC
+#define CORTEX_BEZIER_TCC
 
 // compile-time factorial template; terminate at x=0
 template<unsigned int x>
@@ -100,7 +100,8 @@ T BezierCurve<T,n>::normal(double t) const
 }
 
 template <typename T, std::size_t n>
-void BezierCurve<T,n>::tesselate(std::size_t t_count, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices) const
+template <typename VertexType, typename IndexType>
+void BezierCurve<T,n>::tesselate(std::size_t t_count, std::vector<VertexType>& vertices, std::vector<IndexType>& indices) const
 {
 	vertices.reserve(vertices.size() + t_count);
 	indices.reserve(indices.size() + ((t_count - 1) * 2));
@@ -109,7 +110,7 @@ void BezierCurve<T,n>::tesselate(std::size_t t_count, std::vector<Vertex>& verti
 	for (std::size_t i = 0; i < t_count; ++i) {
 		double t = i / static_cast<double>(t_count - 1);
 
-		struct Vertex vertex;
+		VertexType vertex;
 		vertex.position = position(t);
 		vertex.normal = normal(t);
 		vertices.push_back(std::move(vertex));
@@ -173,7 +174,8 @@ T BezierSurface<T,n,m>::normal(double u, double v) const
 }
 
 template <typename T, std::size_t n, std::size_t m>
-void BezierSurface<T,n,m>::tesselate(std::size_t u_count, std::size_t v_count, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices) const
+template <typename VertexType, typename IndexType>
+void BezierSurface<T,n,m>::tesselate(std::size_t u_count, std::size_t v_count, std::vector<VertexType>& vertices, std::vector<IndexType>& indices) const
 {
 	vertices.reserve(vertices.size() + (u_count * v_count));
 	indices.reserve(indices.size() + ((u_count - 1) * (v_count - 1) * 3 * 2));
@@ -184,7 +186,7 @@ void BezierSurface<T,n,m>::tesselate(std::size_t u_count, std::size_t v_count, s
 			double u = i / static_cast<double>(u_count - 1);
 			double v = j / static_cast<double>(v_count - 1);
 
-			struct Vertex vertex;
+			VertexType vertex;
 			vertex.position = position(u, v);
 			vertex.normal = normal(u, v);
 			vertices.push_back(std::move(vertex));
