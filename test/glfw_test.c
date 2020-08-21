@@ -14,6 +14,8 @@
 
 #include "testscene.h"
 
+static enum scene_demo_t current_scene_demo = SCENE_DEMO_CUBE;
+
 static void glfw_error_func(int error, const char* description)
 {
 	fprintf(stderr, "Error %d: %s\n", error, description);
@@ -26,8 +28,13 @@ static void glfw_resize_func(GLFWwindow* window, int width, int height)
 
 static void glfw_key_func(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
 		glfwSetWindowShouldClose(window, GL_TRUE);
+	}
+
+	if (key == GLFW_KEY_M && action == GLFW_PRESS) {
+		current_scene_demo = scene_next_demo(current_scene_demo);
+	}
 }
 
 
@@ -78,7 +85,7 @@ int main(int argc, char** argv)
 	while (!glfwWindowShouldClose(window))
 	{
 		scene_update();
-		scene_render(SCENE_DEMO_CUBE);
+		scene_render(current_scene_demo);
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
