@@ -38,6 +38,7 @@ static bool ready = 0;
 static int width = 0;
 static int height = 0;
 static unsigned int tick = 0;
+static bool render_normals = false;
 
 // resources
 static GLuint program = 0;
@@ -64,6 +65,13 @@ struct vertex_t {
 	glm::vec3 normal;
 };
 
+struct normals_t {
+	GLuint vao = 0;
+
+	GLuint vbo = 0;
+	GLsizei vertex_count = 0;
+};
+
 struct mesh_t {
 	GLuint vao = 0;
 
@@ -72,6 +80,8 @@ struct mesh_t {
 
 	GLuint ibo = 0;
 	GLsizei index_count = 0;
+
+	normals_t normals;
 };
 
 // cube vertices, grouped by face
@@ -361,6 +371,35 @@ static void scene_load_mesh(const std::vector<vertex_t>& vertices, const std::ve
 	printf("%s(); vao=%u; vbo=%u; ibo=%u\n", __FUNCTION__, mesh->vao, mesh->vbo, mesh->ibo);
 }
 
+static void scene_load_mesh_normals(const std::vector<vertex_t>& vertices, normals_t* normals)
+{
+	// generate vertices representing normal lines
+	using line_type = std::pair<glm::vec3,glm::vec3>;
+	std::vector<line_type> normal_lines;
+	normal_lines.reserve(vertices.size());
+	for (auto&& vertex : vertices) {
+		normal_lines.emplace_back(
+			vertex.position,
+			vertex.position + (glm::normalize(vertex.normal) * 0.3f)
+		);
+	}
+
+	glGenVertexArrays(1, &normals->vao);
+	glBindVertexArray(normals->vao);
+
+	glGenBuffers(1, &normals->vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, normals->vbo);
+	glBufferData(GL_ARRAY_BUFFER, normal_lines.size() * sizeof(line_type), normal_lines.data(), GL_STATIC_DRAW);
+	normals->vertex_count = normal_lines.size() * 2; // two vertices per line
+
+	glEnableVertexAttribArray(attribute_location["v_position"]);
+	glVertexAttribPointer(attribute_location["v_position"], 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+	glBindVertexArray(0);
+
+	printf("%s(); vao=%u; vbo=%u\n", __FUNCTION__, normals->vao, normals->vbo);
+}
+
 int scene_load_resources(void)
 {
 	GLint link_status = GL_FALSE;
@@ -455,22 +494,27 @@ int scene_load_resources(void)
 
 	// load cube mesh
 	scene_load_mesh(cube_vertices, cube_indices, &cube_mesh);
+	scene_load_mesh_normals(cube_vertices, &cube_mesh.normals);
 
 	// load bezier surface mesh
 	bezier_surface.tesselate(16, 16, bezier_surface_vertices, bezier_surface_indices);
 	scene_load_mesh(bezier_surface_vertices, bezier_surface_indices, &bezier_surface_mesh);
+	scene_load_mesh_normals(bezier_surface_vertices, &bezier_surface_mesh.normals);
 
 	// load teapot mesh
 	teapot.tesselate(12, 12, teapot_vertices, teapot_indices);
 	scene_load_mesh(teapot_vertices, teapot_indices, &teapot_mesh);
+	scene_load_mesh_normals(teapot_vertices, &teapot_mesh.normals);
 
 	// load teacup mesh
 	teacup.tesselate(8, 8, teacup_vertices, teacup_indices);
 	scene_load_mesh(teacup_vertices, teacup_indices, &teacup_mesh);
+	scene_load_mesh_normals(teacup_vertices, &teacup_mesh.normals);
 
 	// load teaspoon mesh
 	teaspoon.tesselate(8, 8, teaspoon_vertices, teaspoon_indices);
 	scene_load_mesh(teaspoon_vertices, teaspoon_indices, &teaspoon_mesh);
+	scene_load_mesh_normals(teaspoon_vertices, &teaspoon_mesh.normals);
 
 	return 0;
 }
@@ -490,6 +534,16 @@ static void scene_unload_mesh(mesh_t* mesh)
 	if (mesh->ibo) {
 		glDeleteBuffers(1, &mesh->ibo);
 		mesh->ibo = 0;
+	}
+
+	if (mesh->normals.vao) {
+		glDeleteVertexArrays(1, &mesh->normals.vao);
+		mesh->normals.vao = 0;
+	}
+
+	if (mesh->normals.vbo) {
+		glDeleteBuffers(1, &mesh->normals.vbo);
+		mesh->normals.vbo = 0;
 	}
 }
 
@@ -576,6 +630,24 @@ void scene_render(enum scene_demo_t scene_demo)
 	glBindVertexArray(current_mesh->vao);
 	glDrawElements(GL_TRIANGLES, current_mesh->index_count, GL_UNSIGNED_INT, 0);
 
+	if (render_normals && current_mesh->normals.vao) {
+		// update uniform light parameters for normal lines
+		light_ambient = glm::vec3(1.0f, 1.0f, 1.0f);
+		light_diffuse = glm::vec3(1.0f, 1.0f, 1.0f);
+		glUniform3fv(uniform_location["light.ambient"], 1, glm::value_ptr(light_ambient));
+		glUniform3fv(uniform_location["light.diffuse"], 1, glm::value_ptr(light_diffuse));
+
+		// update uniform material parameters for normal lines
+		material_ambient = glm::vec3(1.0f, 1.0f, 1.0f);
+		material_diffuse = glm::vec3(1.0f, 1.0f, 1.0f);
+		glUniform3fv(uniform_location["material.ambient"], 1, glm::value_ptr(material_ambient));
+		glUniform3fv(uniform_location["material.diffuse"], 1, glm::value_ptr(material_diffuse));
+
+		// render current normals
+		glBindVertexArray(current_mesh->normals.vao);
+		glDrawArrays(GL_LINES, 0, current_mesh->normals.vertex_count);
+	}
+
 	// cleanup
 	glBindVertexArray(0);
 	glUseProgram(0);
@@ -588,4 +660,14 @@ enum scene_demo_t scene_next_demo(enum scene_demo_t current_demo)
 	} else {
 		return SCENE_DEMO_CUBE;
 	}
+}
+
+void scene_set_normals(bool enabled)
+{
+	render_normals = enabled;
+}
+
+void scene_set_wireframe(bool enabled)
+{
+	glPolygonMode(GL_FRONT_AND_BACK, enabled ? GL_LINE : GL_FILL);
 }

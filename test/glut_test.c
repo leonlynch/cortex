@@ -13,6 +13,8 @@
 #include "testscene.h"
 
 static enum scene_demo_t current_scene_demo = SCENE_DEMO_CUBE;
+static bool render_normals = false;
+static bool render_wireframe = false;
 
 static void reshape_func(int width, int height)
 {
@@ -41,6 +43,16 @@ static void keyboard_func(unsigned char key, int x, int y)
 
 		case 'm':
 			current_scene_demo = scene_next_demo(current_scene_demo);
+			break;
+
+		case 'n':
+			render_normals ^= true;
+			scene_set_normals(render_normals);
+			break;
+
+		case 'b': // not 'w', to allow WASD later
+			render_wireframe ^= true;
+			scene_set_wireframe(render_wireframe);
 			break;
 	}
 }

@@ -10,6 +10,7 @@
 #ifndef __TEST_SCENE_H__
 #define __TEST_SCENE_H__
 
+#include <stdbool.h>
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
@@ -35,6 +36,10 @@ void scene_update(void);
 void scene_render(enum scene_demo_t scene_demo);
 
 enum scene_demo_t scene_next_demo(enum scene_demo_t current_demo);
+
+void scene_set_normals(bool enabled);
+
+void scene_set_wireframe(bool enabled);
 
 __END_DECLS
 

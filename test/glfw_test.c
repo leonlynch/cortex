@@ -15,6 +15,8 @@
 #include "testscene.h"
 
 static enum scene_demo_t current_scene_demo = SCENE_DEMO_CUBE;
+static bool render_normals = false;
+static bool render_wireframe = false;
 
 static void glfw_error_func(int error, const char* description)
 {
@@ -34,6 +36,16 @@ static void glfw_key_func(GLFWwindow* window, int key, int scancode, int action,
 
 	if (key == GLFW_KEY_M && action == GLFW_PRESS) {
 		current_scene_demo = scene_next_demo(current_scene_demo);
+	}
+
+	if (key == GLFW_KEY_N && action == GLFW_PRESS) {
+		render_normals ^= true;
+		scene_set_normals(render_normals);
+	}
+
+	if (key == GLFW_KEY_B && action == GLFW_PRESS) { // not 'w', to allow WASD later
+		render_wireframe ^= true;
+		scene_set_wireframe(render_wireframe);
 	}
 }
 
