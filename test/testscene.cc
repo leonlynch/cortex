@@ -15,6 +15,7 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <type_traits>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -74,7 +75,7 @@ struct mesh_t {
 };
 
 // cube vertices, grouped by face
-static struct vertex_t cube_vertices[] = {
+static std::vector<vertex_t> cube_vertices = {
 	{ {  1.0f,  1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f } },
 	{ { -1.0f,  1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f } },
 	{ { -1.0f, -1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f } },
@@ -107,7 +108,7 @@ static struct vertex_t cube_vertices[] = {
 };
 
 // cube vertex indices, grouped by face
-static unsigned int cube_indices[] = {
+static std::vector<unsigned int> cube_indices = {
 	0, 1, 3,
 	2, 3, 1,
 
@@ -332,15 +333,18 @@ exit:
 	return shader;
 }
 
-static void scene_load_mesh(const void* vertex_data, size_t vertex_data_len, const void* index_data, size_t index_data_len, mesh_t* mesh)
+static void scene_load_mesh(const std::vector<vertex_t>& vertices, const std::vector<unsigned int>& indices, mesh_t* mesh)
 {
+	using vertex_type = std::remove_reference<decltype(vertices)>::type::value_type;
+	using index_type = std::remove_reference<decltype(indices)>::type::value_type;
+
 	glGenVertexArrays(1, &mesh->vao);
 	glBindVertexArray(mesh->vao);
 
 	glGenBuffers(1, &mesh->vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
-	glBufferData(GL_ARRAY_BUFFER, vertex_data_len, vertex_data, GL_STATIC_DRAW);
-	mesh->vertex_count = vertex_data_len / sizeof(struct vertex_t);
+	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(vertex_type), vertices.data(), GL_STATIC_DRAW);
+	mesh->vertex_count = vertices.size();
 
 	glEnableVertexAttribArray(attribute_location["v_position"]);
 	glVertexAttribPointer(attribute_location["v_position"], 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex_t), 0);
@@ -349,8 +353,8 @@ static void scene_load_mesh(const void* vertex_data, size_t vertex_data_len, con
 
 	glGenBuffers(1, &mesh->ibo);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->ibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, index_data_len, index_data, GL_STATIC_DRAW);
-	mesh->index_count = index_data_len / sizeof(unsigned int);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(index_type), indices.data(), GL_STATIC_DRAW);
+	mesh->index_count = indices.size();
 
 	glBindVertexArray(0);
 
@@ -450,47 +454,23 @@ int scene_load_resources(void)
 	printf("%s(); fragdata='%s'; location=%d\n", __FUNCTION__, "color", fragdata_location);
 
 	// load cube mesh
-	scene_load_mesh(cube_vertices, sizeof(cube_vertices), cube_indices, sizeof(cube_indices), &cube_mesh);
+	scene_load_mesh(cube_vertices, cube_indices, &cube_mesh);
 
 	// load bezier surface mesh
 	bezier_surface.tesselate(16, 16, bezier_surface_vertices, bezier_surface_indices);
-	scene_load_mesh(
-		bezier_surface_vertices.data(),
-		bezier_surface_vertices.size() * sizeof(decltype(bezier_surface_vertices)::value_type),
-		bezier_surface_indices.data(),
-		bezier_surface_indices.size() * sizeof(decltype(bezier_surface_indices)::value_type),
-		&bezier_surface_mesh
-	);
+	scene_load_mesh(bezier_surface_vertices, bezier_surface_indices, &bezier_surface_mesh);
 
 	// load teapot mesh
 	teapot.tesselate(12, 12, teapot_vertices, teapot_indices);
-	scene_load_mesh(
-		teapot_vertices.data(),
-		teapot_vertices.size() * sizeof(decltype(teapot_vertices)::value_type),
-		teapot_indices.data(),
-		teapot_indices.size() * sizeof(decltype(teapot_indices)::value_type),
-		&teapot_mesh
-	);
+	scene_load_mesh(teapot_vertices, teapot_indices, &teapot_mesh);
 
 	// load teacup mesh
 	teacup.tesselate(8, 8, teacup_vertices, teacup_indices);
-	scene_load_mesh(
-		teacup_vertices.data(),
-		teacup_vertices.size() * sizeof(decltype(teacup_vertices)::value_type),
-		teacup_indices.data(),
-		teacup_indices.size() * sizeof(decltype(teacup_indices)::value_type),
-		&teacup_mesh
-	);
+	scene_load_mesh(teacup_vertices, teacup_indices, &teacup_mesh);
 
 	// load teaspoon mesh
 	teaspoon.tesselate(8, 8, teaspoon_vertices, teaspoon_indices);
-	scene_load_mesh(
-		teaspoon_vertices.data(),
-		teaspoon_vertices.size() * sizeof(decltype(teaspoon_vertices)::value_type),
-		teaspoon_indices.data(),
-		teaspoon_indices.size() * sizeof(decltype(teaspoon_indices)::value_type),
-		&teaspoon_mesh
-	);
+	scene_load_mesh(teaspoon_vertices, teaspoon_indices, &teaspoon_mesh);
 
 	return 0;
 }
