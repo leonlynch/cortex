@@ -14,6 +14,7 @@
 
 #include "testscene.h"
 
+static bool scene_is_paused = false;
 static enum scene_demo_t current_scene_demo = SCENE_DEMO_CUBE;
 static bool render_normals = false;
 static bool render_wireframe = false;
@@ -32,6 +33,10 @@ static void glfw_key_func(GLFWwindow* window, int key, int scancode, int action,
 {
 	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
 		glfwSetWindowShouldClose(window, GL_TRUE);
+	}
+
+	if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
+		scene_is_paused ^= true;
 	}
 
 	if (key == GLFW_KEY_M && action == GLFW_PRESS) {
@@ -96,7 +101,10 @@ int main(int argc, char** argv)
 
 	while (!glfwWindowShouldClose(window))
 	{
-		scene_update();
+		if (!scene_is_paused) {
+			scene_update();
+		}
+
 		scene_render(current_scene_demo);
 
 		glfwSwapBuffers(window);

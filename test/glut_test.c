@@ -12,6 +12,7 @@
 
 #include "testscene.h"
 
+static bool scene_is_paused = false;
 static enum scene_demo_t current_scene_demo = SCENE_DEMO_CUBE;
 static bool render_normals = false;
 static bool render_wireframe = false;
@@ -23,7 +24,9 @@ static void reshape_func(int width, int height)
 
 static void timer_func(int value)
 {
-	scene_update();
+	if (!scene_is_paused) {
+		scene_update();
+	}
 
 	glutTimerFunc(20, &timer_func, 20);
 }
@@ -39,6 +42,10 @@ static void keyboard_func(unsigned char key, int x, int y)
 	switch (key) {
 		case 0x1b:
 			glutLeaveMainLoop();
+			break;
+
+		case ' ':
+			scene_is_paused ^= true;
 			break;
 
 		case 'm':
