@@ -20,6 +20,7 @@ int main(int argc, char** argv)
 	format.setVersion(3, 3);
 	format.setProfile(QSurfaceFormat::CoreProfile);
 	format.setDepthBufferSize(32);
+	format.setSamples(4);
 	format.setSwapBehavior(QSurfaceFormat::DoubleBuffer);
 	QSurfaceFormat::setDefaultFormat(format);
 

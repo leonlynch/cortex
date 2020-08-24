@@ -72,7 +72,8 @@ int main(int argc, char** argv)
 	glutInitContextVersion(3, 3);
 	glutInitContextProfile(GLUT_CORE_PROFILE);
 	glutInitContextFlags(GLUT_DEBUG);
-	glutInitDisplayMode(GLUT_RGBA | GLUT_DEPTH | GLUT_DOUBLE);
+	glutInitDisplayMode(GLUT_RGBA | GLUT_DEPTH | GLUT_MULTISAMPLE | GLUT_DOUBLE);
+	glutSetOption(GLUT_MULTISAMPLE, 4);
 	glutInitWindowSize(640, 480);
 	glutInitWindowPosition(0, 0);
 	glutCreateWindow("GLUT test");

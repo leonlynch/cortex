@@ -212,6 +212,16 @@ int scene_init(void)
 		return -1;
 	}
 
+	// multisampling
+	glEnable(GL_MULTISAMPLE);
+	GLint msaa = 0;
+	glGetIntegerv(GL_SAMPLES, &msaa);
+	if (msaa > 0) {
+		std::printf("MSAAx%d enabled\n", msaa);
+	} else {
+		std::printf("MSAA disabled\n");
+	}
+
 	// debugging
 	if (GLEW_KHR_debug) { // KHR_debug is part of OpenGL-4.3 core
 		glDebugMessageCallback(&scene_debug, NULL);
