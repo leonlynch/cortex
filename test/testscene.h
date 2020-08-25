@@ -7,8 +7,8 @@
  * See LICENSE file.
  */
 
-#ifndef __TEST_SCENE_H__
-#define __TEST_SCENE_H__
+#ifndef TEST_SCENE_H
+#define TEST_SCENE_H
 
 #include <stdbool.h>
 #include <sys/cdefs.h>

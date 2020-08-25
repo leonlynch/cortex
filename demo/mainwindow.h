@@ -7,8 +7,8 @@
  * See LICENSE file.
  */
 
-#ifndef __MAINWINDOW_H__
-#define __MAINWINDOW_H__
+#ifndef DEMO_MAINWINDOW_H
+#define DEMO_MAINWINDOW_H
 
 #include <QtWidgets/QMainWindow>
 #include <QtCore/QString>

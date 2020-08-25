@@ -7,8 +7,8 @@
  * See LICENSE file.
  */
 
-#ifndef __TEST_WIDGET_H__
-#define __TEST_WIDGET_H__
+#ifndef TEST_WIDGET_H
+#define TEST_WIDGET_H
 
 #include <QtWidgets/QOpenGLWidget>
 #include <QtCore/QTimer>
@@ -25,9 +25,9 @@ public:
 	virtual ~TestWidget();
 
 protected:
-	virtual void initializeGL();
-	virtual void resizeGL(int width, int height);
-	virtual void paintGL();
+	virtual void initializeGL() override;
+	virtual void resizeGL(int width, int height) override;
+	virtual void paintGL() override;
 
 public slots:
 	void doUpdate();

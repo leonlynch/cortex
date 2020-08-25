@@ -7,8 +7,8 @@
  * See LICENSE file.
  */
 
-#ifndef __DEMO_WIDGET_H__
-#define __DEMO_WIDGET_H__
+#ifndef DEMO_WIDGET_H
+#define DEMO_WIDGET_H
 
 #include <QtWidgets/QOpenGLWidget>
 #include <QtCore/QTimer>
@@ -26,9 +26,9 @@ public:
 	virtual ~DemoWidget();
 
 protected:
-	virtual void initializeGL();
-	virtual void resizeGL(int width, int height);
-	virtual void paintGL();
+	virtual void initializeGL() override;
+	virtual void resizeGL(int width, int height) override;
+	virtual void paintGL() override;
 
 public slots:
 	virtual void doUpdate();

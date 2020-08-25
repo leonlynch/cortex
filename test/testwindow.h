@@ -7,8 +7,8 @@
  * See LICENSE file.
  */
 
-#ifndef __TEST_WINDOW_H__
-#define __TEST_WINDOW_H__
+#ifndef TEST_WINDOW_H
+#define TEST_WINDOW_H
 
 #include <QtGui/QOpenGLWindow>
 #include <QtCore/QTimer>
@@ -25,9 +25,9 @@ public:
 	virtual ~TestWindow();
 
 protected:
-	virtual void initializeGL();
-	virtual void resizeGL(int width, int height);
-	virtual void paintGL();
+	virtual void initializeGL() override;
+	virtual void resizeGL(int width, int height) override;
+	virtual void paintGL() override;
 
 public slots:
 	void doUpdate();

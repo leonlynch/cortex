@@ -7,8 +7,8 @@
  * See LICENSE file.
  */
 
-#ifndef __VERSION_H__
-#define __VERSION_H__
+#ifndef DEMO_VERSION_H
+#define DEMO_VERSION_H
 
 #define VERSION "@VERSION@"
 #define BUILD_DATE "@BUILD_DATE@"
