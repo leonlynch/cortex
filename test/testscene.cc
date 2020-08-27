@@ -33,6 +33,7 @@
 
 #include "bezier.h"
 #include "teaset.h"
+#include "sphere.h"
 
 static bool ready = 0;
 static int width = 0;
@@ -171,6 +172,12 @@ static Teaspoon teaspoon;
 static std::vector<vertex_t> teaspoon_vertices;
 static std::vector<unsigned int> teaspoon_indices;
 static mesh_t teaspoon_mesh;
+
+// Sphere
+static Sphere<glm::vec3> sphere;
+static std::vector<vertex_t> sphere_vertices;
+static std::vector<unsigned int> sphere_indices;
+static mesh_t sphere_mesh;
 
 static void scene_debug(
 	GLenum source,
@@ -526,6 +533,11 @@ int scene_load_resources(void)
 	scene_load_mesh(teaspoon_vertices, teaspoon_indices, &teaspoon_mesh);
 	scene_load_mesh_normals(teaspoon_vertices, &teaspoon_mesh.normals);
 
+	// load sphere mesh
+	sphere.tesselate(3, sphere_vertices, sphere_indices);
+	scene_load_mesh(sphere_vertices, sphere_indices, &sphere_mesh);
+	scene_load_mesh_normals(sphere_vertices, &sphere_mesh.normals);
+
 	return 0;
 }
 
@@ -564,6 +576,7 @@ void scene_unload_resources(void)
 	scene_unload_mesh(&teapot_mesh);
 	scene_unload_mesh(&teacup_mesh);
 	scene_unload_mesh(&teaspoon_mesh);
+	scene_unload_mesh(&sphere_mesh);
 
 	if (vertex_shader) {
 		glDeleteShader(vertex_shader);
@@ -633,6 +646,7 @@ void scene_render(enum scene_demo_t scene_demo)
 		case SCENE_DEMO_TEAPOT: current_mesh = &teapot_mesh; break;
 		case SCENE_DEMO_TEACUP: current_mesh = &teacup_mesh; break;
 		case SCENE_DEMO_TEASPOON: current_mesh = &teaspoon_mesh; break;
+		case SCENE_DEMO_SPHERE: current_mesh = &sphere_mesh; break;
 		default: current_mesh = &cube_mesh;
 	}
 
@@ -665,7 +679,7 @@ void scene_render(enum scene_demo_t scene_demo)
 
 enum scene_demo_t scene_next_demo(enum scene_demo_t current_demo)
 {
-	if (current_demo < SCENE_DEMO_TEASPOON) {
+	if (current_demo < SCENE_DEMO_SPHERE) {
 		return static_cast<scene_demo_t>(static_cast<int>(current_demo) + 1);
 	} else {
 		return SCENE_DEMO_CUBE;

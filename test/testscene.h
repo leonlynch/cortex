@@ -21,6 +21,7 @@ enum scene_demo_t {
 	SCENE_DEMO_TEAPOT,
 	SCENE_DEMO_TEACUP,
 	SCENE_DEMO_TEASPOON,
+	SCENE_DEMO_SPHERE,
 };
 
 int scene_init(void);
