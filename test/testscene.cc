@@ -34,6 +34,7 @@
 #include "bezier.h"
 #include "teaset.h"
 #include "sphere.h"
+#include "shape.h"
 
 static bool ready = 0;
 static int width = 0;
@@ -85,62 +86,17 @@ struct mesh_t {
 	normals_t normals;
 };
 
-// cube vertices, grouped by face
-static std::vector<vertex_t> cube_vertices = {
-	{ {  1.0f,  1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f } },
-	{ { -1.0f,  1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f } },
-	{ { -1.0f, -1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f } },
-	{ {  1.0f, -1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f } },
-
-	{ { -1.0f,  1.0f, -1.0f }, {  0.0f,  0.0f, -1.0f } },
-	{ {  1.0f,  1.0f, -1.0f }, {  0.0f,  0.0f, -1.0f } },
-	{ {  1.0f, -1.0f, -1.0f }, {  0.0f,  0.0f, -1.0f } },
-	{ { -1.0f, -1.0f, -1.0f }, {  0.0f,  0.0f, -1.0f } },
-
-	{ {  1.0f,  1.0f, -1.0f }, {  1.0f,  0.0f,  0.0f } },
-	{ {  1.0f,  1.0f,  1.0f }, {  1.0f,  0.0f,  0.0f } },
-	{ {  1.0f, -1.0f,  1.0f }, {  1.0f,  0.0f,  0.0f } },
-	{ {  1.0f, -1.0f, -1.0f }, {  1.0f,  0.0f,  0.0f } },
-
-	{ { -1.0f,  1.0f,  1.0f }, { -1.0f,  0.0f,  0.0f } },
-	{ { -1.0f,  1.0f, -1.0f }, { -1.0f,  0.0f,  0.0f } },
-	{ { -1.0f, -1.0f, -1.0f }, { -1.0f,  0.0f,  0.0f } },
-	{ { -1.0f, -1.0f,  1.0f }, { -1.0f,  0.0f,  0.0f } },
-
-	{ {  1.0f,  1.0f, -1.0f }, {  0.0f,  1.0f,  0.0f } },
-	{ { -1.0f,  1.0f, -1.0f }, {  0.0f,  1.0f,  0.0f } },
-	{ { -1.0f,  1.0f,  1.0f }, {  0.0f,  1.0f,  0.0f } },
-	{ {  1.0f,  1.0f,  1.0f }, {  0.0f,  1.0f,  0.0f } },
-
-	{ {  1.0f, -1.0f,  1.0f }, {  0.0f, -1.0f,  0.0f } },
-	{ { -1.0f, -1.0f,  1.0f }, {  0.0f, -1.0f,  0.0f } },
-	{ { -1.0f, -1.0f, -1.0f }, {  0.0f, -1.0f,  0.0f } },
-	{ {  1.0f, -1.0f, -1.0f }, {  0.0f, -1.0f,  0.0f } },
-};
-
-// cube vertex indices, grouped by face
-static std::vector<unsigned int> cube_indices = {
-	0, 1, 3,
-	2, 3, 1,
-
-	4, 5, 7,
-	6, 7, 5,
-
-	8, 9, 11,
-	10, 11, 9,
-
-	12, 13, 15,
-	14, 15, 13,
-
-	16, 17, 19,
-	18, 19, 17,
-
-	20, 21, 23,
-	22, 23, 21,
-};
-
 // cube mesh
+static Cube<glm::vec3> cube;
+static std::vector<vertex_t> cube_vertices;
+static std::vector<unsigned int> cube_indices;
 static mesh_t cube_mesh;
+
+// octahedron mesh
+static Octahedron<glm::vec3> octahedron;
+static std::vector<vertex_t> octahedron_vertices;
+static std::vector<unsigned int> octahedron_indices;
+static mesh_t octahedron_mesh;
 
 // bezier surface mesh
 static glm::vec3 bezier_surface_data[4][4] = {
@@ -510,8 +466,14 @@ int scene_load_resources(void)
 	printf("%s(); fragdata='%s'; location=%d\n", __FUNCTION__, "color", fragdata_location);
 
 	// load cube mesh
+	cube.tesselate(cube_vertices, cube_indices);
 	scene_load_mesh(cube_vertices, cube_indices, &cube_mesh);
 	scene_load_mesh_normals(cube_vertices, &cube_mesh.normals);
+
+	// load octahedron mesh
+	octahedron.tesselate(octahedron_vertices, octahedron_indices);
+	scene_load_mesh(octahedron_vertices, octahedron_indices, &octahedron_mesh);
+	scene_load_mesh_normals(octahedron_vertices, &octahedron_mesh.normals);
 
 	// load bezier surface mesh
 	bezier_surface.tesselate(16, 16, bezier_surface_vertices, bezier_surface_indices);
@@ -572,6 +534,7 @@ static void scene_unload_mesh(mesh_t* mesh)
 void scene_unload_resources(void)
 {
 	scene_unload_mesh(&cube_mesh);
+	scene_unload_mesh(&octahedron_mesh);
 	scene_unload_mesh(&bezier_surface_mesh);
 	scene_unload_mesh(&teapot_mesh);
 	scene_unload_mesh(&teacup_mesh);
@@ -642,6 +605,7 @@ void scene_render(enum scene_demo_t scene_demo)
 	mesh_t* current_mesh = nullptr;
 	switch (scene_demo) {
 		case SCENE_DEMO_CUBE: current_mesh = &cube_mesh; break;
+		case SCENE_DEMO_OCTAHEDRON: current_mesh = &octahedron_mesh; break;
 		case SCENE_DEMO_BEZIER: current_mesh = &bezier_surface_mesh; break;
 		case SCENE_DEMO_TEAPOT: current_mesh = &teapot_mesh; break;
 		case SCENE_DEMO_TEACUP: current_mesh = &teacup_mesh; break;
