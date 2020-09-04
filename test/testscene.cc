@@ -135,6 +135,10 @@ static std::vector<vertex_t> sphere_vertices;
 static std::vector<unsigned int> sphere_indices;
 static mesh_t sphere_mesh;
 
+// helper function declarations
+static void scene_update_mesh(const std::vector<vertex_t>& vertices, const std::vector<unsigned int>& indices, mesh_t* mesh);
+static void scene_update_mesh_normals(const std::vector<vertex_t>& vertices, normals_t* normals);
+
 static void scene_debug(
 	GLenum source,
 	GLenum type,
@@ -318,33 +322,72 @@ exit:
 
 static void scene_load_mesh(const std::vector<vertex_t>& vertices, const std::vector<unsigned int>& indices, mesh_t* mesh)
 {
-	using vertex_type = std::remove_reference<decltype(vertices)>::type::value_type;
-	using index_type = std::remove_reference<decltype(indices)>::type::value_type;
-
+	// generate new vertex array object
 	glGenVertexArrays(1, &mesh->vao);
 	glBindVertexArray(mesh->vao);
 
+	// generate and setup new vertex buffer object
 	glGenBuffers(1, &mesh->vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
-	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(vertex_type), vertices.data(), GL_STATIC_DRAW);
-	mesh->vertex_count = vertices.size();
-
 	glEnableVertexAttribArray(attribute_location["v_position"]);
 	glVertexAttribPointer(attribute_location["v_position"], 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex_t), 0);
 	glEnableVertexAttribArray(attribute_location["v_normal"]);
 	glVertexAttribPointer(attribute_location["v_normal"], 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex_t), (const GLvoid*)offsetof(struct vertex_t, normal));
 
+	// generate new index buffer object
 	glGenBuffers(1, &mesh->ibo);
+
+	// load data
+	scene_update_mesh(vertices, indices, mesh);
+
+	// unbind vertex array object
+	glBindVertexArray(0);
+}
+
+static void scene_update_mesh(const std::vector<vertex_t>& vertices, const std::vector<unsigned int>& indices, mesh_t* mesh)
+{
+	using vertex_type = std::remove_reference<decltype(vertices)>::type::value_type;
+	using index_type = std::remove_reference<decltype(indices)>::type::value_type;
+
+	// bind existing vertex array object
+	glBindVertexArray(mesh->vao);
+
+	// update existing vertex buffer object
+	glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
+	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(vertex_type), vertices.data(), GL_DYNAMIC_DRAW);
+	mesh->vertex_count = vertices.size();
+
+	// update existing index buffer object
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->ibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(index_type), indices.data(), GL_STATIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(index_type), indices.data(), GL_DYNAMIC_DRAW);
 	mesh->index_count = indices.size();
 
+	// unbind vertex array object
 	glBindVertexArray(0);
 
-	printf("%s(); vao=%u; vbo=%u; ibo=%u\n", __FUNCTION__, mesh->vao, mesh->vbo, mesh->ibo);
+	printf("%s(); vao=%u; vbo=%u[%zu]; ibo=%u[%zu]\n", __FUNCTION__, mesh->vao, mesh->vbo, vertices.size(), mesh->ibo, indices.size());
 }
 
 static void scene_load_mesh_normals(const std::vector<vertex_t>& vertices, normals_t* normals)
+{
+	// generate new vertex array object
+	glGenVertexArrays(1, &normals->vao);
+	glBindVertexArray(normals->vao);
+
+	// generate and setup new vertex buffer object
+	glGenBuffers(1, &normals->vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, normals->vbo);
+	glEnableVertexAttribArray(attribute_location["v_position"]);
+	glVertexAttribPointer(attribute_location["v_position"], 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+	// load data
+	scene_update_mesh_normals(vertices, normals);
+
+	// unbind vertex array object
+	glBindVertexArray(0);
+}
+
+static void scene_update_mesh_normals(const std::vector<vertex_t>& vertices, normals_t* normals)
 {
 	// generate vertices representing normal lines
 	using line_type = std::pair<glm::vec3,glm::vec3>;
@@ -357,20 +400,15 @@ static void scene_load_mesh_normals(const std::vector<vertex_t>& vertices, norma
 		);
 	}
 
-	glGenVertexArrays(1, &normals->vao);
+	// bind existing vertex array object
 	glBindVertexArray(normals->vao);
 
-	glGenBuffers(1, &normals->vbo);
+	// update existing vertex buffer object
 	glBindBuffer(GL_ARRAY_BUFFER, normals->vbo);
-	glBufferData(GL_ARRAY_BUFFER, normal_lines.size() * sizeof(line_type), normal_lines.data(), GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, normal_lines.size() * sizeof(line_type), normal_lines.data(), GL_DYNAMIC_DRAW);
 	normals->vertex_count = normal_lines.size() * 2; // two vertices per line
 
-	glEnableVertexAttribArray(attribute_location["v_position"]);
-	glVertexAttribPointer(attribute_location["v_position"], 3, GL_FLOAT, GL_FALSE, 0, 0);
-
-	glBindVertexArray(0);
-
-	printf("%s(); vao=%u; vbo=%u\n", __FUNCTION__, normals->vao, normals->vbo);
+	printf("%s(); vao=%u; vbo=%u[%zu]\n", __FUNCTION__, normals->vao, normals->vbo, normal_lines.size());
 }
 
 int scene_load_resources(void)
@@ -658,4 +696,51 @@ void scene_set_normals(bool enabled)
 void scene_set_wireframe(bool enabled)
 {
 	glPolygonMode(GL_FRONT_AND_BACK, enabled ? GL_LINE : GL_FILL);
+}
+
+void scene_set_complexity(int subdivision_delta)
+{
+	std::size_t sub_count;
+
+	// clear data
+	bezier_surface_vertices.clear();
+	bezier_surface_indices.clear();
+	teapot_vertices.clear();
+	teapot_indices.clear();
+	teacup_vertices.clear();
+	teacup_indices.clear();
+	teaspoon_vertices.clear();
+	teaspoon_indices.clear();
+	sphere_vertices.clear();
+	sphere_indices.clear();
+
+	// update bezier surface mesh
+	sub_count = glm::clamp(16 + subdivision_delta, 2, 24);
+	bezier_surface.tesselate(sub_count, sub_count, bezier_surface_vertices, bezier_surface_indices);
+	scene_update_mesh(bezier_surface_vertices, bezier_surface_indices, &bezier_surface_mesh);
+	scene_update_mesh_normals(bezier_surface_vertices, &bezier_surface_mesh.normals);
+
+	// update teapot mesh
+	sub_count = glm::clamp(12 + subdivision_delta, 2, 24);
+	teapot.tesselate(sub_count, sub_count, teapot_vertices, teapot_indices);
+	scene_update_mesh(teapot_vertices, teapot_indices, &teapot_mesh);
+	scene_update_mesh_normals(teapot_vertices, &teapot_mesh.normals);
+
+	// update teacup mesh
+	sub_count = glm::clamp(8 + subdivision_delta, 2, 16);
+	teacup.tesselate(sub_count, sub_count, teacup_vertices, teacup_indices);
+	scene_update_mesh(teacup_vertices, teacup_indices, &teacup_mesh);
+	scene_update_mesh_normals(teacup_vertices, &teacup_mesh.normals);
+
+	// update teaspoon mesh
+	sub_count = glm::clamp(8 + subdivision_delta, 2, 16);
+	teaspoon.tesselate(sub_count, sub_count, teaspoon_vertices, teaspoon_indices);
+	scene_update_mesh(teaspoon_vertices, teaspoon_indices, &teaspoon_mesh);
+	scene_update_mesh_normals(teaspoon_vertices, &teaspoon_mesh.normals);
+
+	// update sphere mesh
+	sub_count = glm::clamp(3 + subdivision_delta, 0, 4);
+	sphere.tesselate(sub_count, sphere_vertices, sphere_indices);
+	scene_update_mesh(sphere_vertices, sphere_indices, &sphere_mesh);
+	scene_update_mesh_normals(sphere_vertices, &sphere_mesh.normals);
 }

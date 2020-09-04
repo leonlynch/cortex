@@ -43,6 +43,8 @@ void scene_set_normals(bool enabled);
 
 void scene_set_wireframe(bool enabled);
 
+void scene_set_complexity(int subdivision_delta);
+
 __END_DECLS
 
 #endif

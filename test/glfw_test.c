@@ -18,6 +18,7 @@ static bool scene_is_paused = false;
 static enum scene_demo_t current_scene_demo = SCENE_DEMO_CUBE;
 static bool render_normals = false;
 static bool render_wireframe = false;
+static int subdivision_delta = 0;
 
 static void glfw_error_func(int error, const char* description)
 {
@@ -51,6 +52,14 @@ static void glfw_key_func(GLFWwindow* window, int key, int scancode, int action,
 	if (key == GLFW_KEY_B && action == GLFW_PRESS) { // not 'w', to allow WASD later
 		render_wireframe ^= true;
 		scene_set_wireframe(render_wireframe);
+	}
+
+	if (key == GLFW_KEY_LEFT_BRACKET && action == GLFW_PRESS) {
+		scene_set_complexity(--subdivision_delta);
+	}
+
+	if (key == GLFW_KEY_RIGHT_BRACKET && action == GLFW_PRESS) {
+		scene_set_complexity(++subdivision_delta);
 	}
 }
 

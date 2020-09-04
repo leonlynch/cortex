@@ -16,6 +16,7 @@ static bool scene_is_paused = false;
 static enum scene_demo_t current_scene_demo = SCENE_DEMO_CUBE;
 static bool render_normals = false;
 static bool render_wireframe = false;
+static int subdivision_delta = 0;
 
 static void reshape_func(int width, int height)
 {
@@ -60,6 +61,14 @@ static void keyboard_func(unsigned char key, int x, int y)
 		case 'b': // not 'w', to allow WASD later
 			render_wireframe ^= true;
 			scene_set_wireframe(render_wireframe);
+			break;
+
+		case '[':
+			scene_set_complexity(--subdivision_delta);
+			break;
+
+		case ']':
+			scene_set_complexity(++subdivision_delta);
 			break;
 	}
 }
