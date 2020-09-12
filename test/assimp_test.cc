@@ -68,14 +68,14 @@ static void print_mesh(const struct aiMesh* mesh)
 		mesh->mTangents ? " mTangents" : "",
 		mesh->mBitangents ? " mBitangents" : ""
 	);
-	for (unsigned int i = 0; i < sizeof(mesh->mColors) / sizeof(mesh->mColors[0]); ++i) {
+	for (std::size_t i = 0; i < sizeof(mesh->mColors) / sizeof(mesh->mColors[0]); ++i) {
 		if (mesh->mColors[i])
 			++numColors;
 	}
 	if (numColors) {
 		std::printf("; mColors=%u", numColors);
 	}
-	for (unsigned int i = 0; i < sizeof(mesh->mTextureCoords) / sizeof(mesh->mTextureCoords[0]); ++i) {
+	for (std::size_t i = 0; i < sizeof(mesh->mTextureCoords) / sizeof(mesh->mTextureCoords[0]); ++i) {
 		if (mesh->mTextureCoords[i])
 			++numTextureCoords;
 	}
@@ -87,13 +87,13 @@ static void print_mesh(const struct aiMesh* mesh)
 }
 
 template <typename T>
-static void print_material_property_array(const void* data, unsigned int length)
+static void print_material_property_array(const void* data, std::size_t length)
 {
 	const T* value = reinterpret_cast<const T*>(data);
-	unsigned int count = length / sizeof(T);
+	std::size_t count = length / sizeof(T);
 
 	std::printf("{ ");
-	for (unsigned int i = 0; i < count; ++i) {
+	for (std::size_t i = 0; i < count; ++i) {
 		if (i)
 			std::printf(", ");
 		std::cout << value[i];
@@ -125,6 +125,11 @@ static void print_material(const struct aiMaterial* material)
 				case aiPTI_Float:
 					std::printf("[Float/%u] ", property->mDataLength);
 					print_material_property_array<float>(property->mData, property->mDataLength);
+					break;
+
+				case aiPTI_Double:
+					std::printf("[Double/%u] ", property->mDataLength);
+					print_material_property_array<double>(property->mData, property->mDataLength);
 					break;
 
 				case aiPTI_String: {
@@ -236,7 +241,7 @@ static void print_material(const struct aiMaterial* material)
 		std::printf("\tSpecular = { %f, %f, %f }\n", specular.r, specular.g, specular.b);
 	}
 
-	const aiTextureType types[] = {
+	const aiTextureType texture_types[] = {
 		aiTextureType_NONE,
 		aiTextureType_DIFFUSE,
 		aiTextureType_SPECULAR,
@@ -249,22 +254,28 @@ static void print_material(const struct aiMaterial* material)
 		aiTextureType_DISPLACEMENT,
 		aiTextureType_LIGHTMAP,
 		aiTextureType_REFLECTION,
+		aiTextureType_BASE_COLOR,
+		aiTextureType_NORMAL_CAMERA,
+		aiTextureType_EMISSION_COLOR,
+		aiTextureType_METALNESS,
+		aiTextureType_DIFFUSE_ROUGHNESS,
+		aiTextureType_AMBIENT_OCCLUSION,
 		aiTextureType_UNKNOWN
 	};
-	for (unsigned int type = 0; type < sizeof(types)/sizeof(types[0]); ++type) {
+	for (auto&& texture_type : texture_types) {
 		ret = AI_SUCCESS;
 		for (unsigned int idx = 0; ret == AI_SUCCESS; ++idx) {
 			aiString filename;
-			ret = material->Get(AI_MATKEY_TEXTURE(type, idx), filename);
+			ret = material->Get(AI_MATKEY_TEXTURE(texture_type, idx), filename);
 			if (ret == AI_SUCCESS) {
-				std::printf("\tTexture(%u,%u) = '%s'\n", type, idx, filename.C_Str());
+				std::printf("\tTexture(%u,%u) = '%s'\n", texture_type, idx, filename.C_Str());
 				continue;
 			}
 
 			int texture_idx;
-			ret = material->Get(AI_MATKEY_TEXTURE(type, idx), texture_idx);
+			ret = material->Get(AI_MATKEY_TEXTURE(texture_type, idx), texture_idx);
 			if (ret == AI_SUCCESS) {
-				std::printf("\tTexture(%u,%u) = #%u\n", type, idx, texture_idx);
+				std::printf("\tTexture(%u,%u) = #%u\n", texture_type, idx, texture_idx);
 				continue;
 			}
 		};
