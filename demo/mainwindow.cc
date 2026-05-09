@@ -8,7 +8,8 @@
  */
 
 #include "mainwindow.h"
-#include "version.h"
+#include "demo_config.h"
+#include "demowidget.h"
 
 #include <iostream>
 
@@ -17,7 +18,7 @@ MainWindow::MainWindow(QWidget* parent)
 {
 	setupUi(this);
 
-	applicationVersionStr->setText(VERSION);
+	applicationVersionStr->setText(DEMO_VERSION);
 
 	connect(animationCheckBox, &QCheckBox::checkStateChanged, animationIntervalSpinBox,
 		[this](Qt::CheckState state) {
@@ -33,25 +34,20 @@ MainWindow::MainWindow(QWidget* parent)
 			demowidget->setAnimation(state == Qt::Checked);
 		}
 	);
-	connect(animationIntervalSpinBox, SIGNAL(valueChanged(int)), demowidget, SLOT(setAnimationInterval(int)));
+	connect(animationIntervalSpinBox, &QSpinBox::valueChanged, demowidget, &DemoWidget::setAnimationInterval);
 	connect(demowidget, &DemoWidget::log, this, &MainWindow::appendLog);
 	connect(demowidget, &DemoWidget::error, this, &MainWindow::appendError);
 	connect(demowidget, &DemoWidget::versionString, openglVersionStr, &QLabel::setText);
 	centralWidget()->layout()->addWidget(demowidget);
 }
 
-MainWindow::~MainWindow()
-{
-	if (demowidget)
-		delete demowidget;
-}
 
 void MainWindow::appendLog(const QString& msg)
 {
-	std::cout << msg.toStdString() << std::endl;
+	std::cout << msg.toStdString() << '\n';
 }
 
 void MainWindow::appendError(const QString& msg)
 {
-	std::cerr << msg.toStdString() << std::endl;
+	std::cerr << msg.toStdString() << '\n';
 }

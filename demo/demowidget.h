@@ -22,7 +22,7 @@ private:
 	QTimer timer;
 
 public:
-	explicit DemoWidget(QWidget* parent = 0);
+	explicit DemoWidget(QWidget* parent = nullptr);
 	virtual ~DemoWidget();
 
 protected:

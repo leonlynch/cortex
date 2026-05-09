@@ -5,8 +5,8 @@
 # See LICENSE file.
 ##############################################################################
 
-set(VERSION ${GIT_DESCRIBE})
-configure_file(version.h.in version.h)
+set(DEMO_VERSION ${GIT_DESCRIBE})
+configure_file(demo_config.h.in demo_config.h)
 
 include_directories(${LIBCORTEX_INCLUDE_DIR})
 set(CMAKE_INCLUDE_CURRENT_DIR ON) # include generated files

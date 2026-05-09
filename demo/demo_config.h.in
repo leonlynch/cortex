@@ -1,16 +1,16 @@
 /**
- * @file version.h
+ * @file demo_config.h
  *
- * Copyright (c) 2013 Leon Lynch
+ * Copyright 2026 Leon Lynch
  *
  * This file is licensed under the terms of the MIT license.
  * See LICENSE file.
  */
 
-#ifndef DEMO_VERSION_H
-#define DEMO_VERSION_H
+#ifndef DEMO_CONFIG_H
+#define DEMO_CONFIG_H
 
-#define VERSION "@VERSION@"
+#define DEMO_VERSION "@DEMO_VERSION@"
 #define BUILD_DATE "@BUILD_DATE@"
 
 #endif

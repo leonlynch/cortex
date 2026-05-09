@@ -1,7 +1,7 @@
 /**
  * @file entity.cc
  *
- * Copyright (c) 2013 Leon Lynch
+ * Copyright 2013, 2026 Leon Lynch
  *
  * This file is licensed under the terms of the MIT license.
  * See LICENSE file.
@@ -11,7 +11,7 @@
 #include "material.h"
 #include "mesh.h"
 
-Entity::Entity(const std::string name)
+Entity::Entity(const std::string& name)
 : name(name)
 {
 }

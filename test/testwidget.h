@@ -21,7 +21,7 @@ private:
 	QTimer timer;
 
 public:
-	TestWidget(QWidget* parent = 0);
+	TestWidget(QWidget* parent = nullptr);
 	virtual ~TestWidget();
 
 protected:

@@ -1,7 +1,7 @@
 /**
  * @file entity.h
  *
- * Copyright (c) 2013 Leon Lynch
+ * Copyright 2013, 2026 Leon Lynch
  *
  * This file is licensed under the terms of the MIT license.
  * See LICENSE file.
@@ -26,7 +26,7 @@ public:
 	std::list<Mesh*> meshes;
 
 public:
-	Entity(const std::string name);
+	Entity(const std::string& name);
 	virtual ~Entity();
 
 	Entity(const Entity&) = delete;

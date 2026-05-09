@@ -1,7 +1,7 @@
 /**
  * @file mainwindow.h
  *
- * Copyright (c) 2013 Leon Lynch
+ * Copyright 2013, 2026 Leon Lynch
  *
  * This file is licensed under the terms of the MIT license.
  * See LICENSE file.
@@ -14,7 +14,9 @@
 #include <QtCore/QString>
 
 #include "ui_mainwindow.h"
-#include "demowidget.h"
+
+// Forward declarations
+class DemoWidget;
 
 class MainWindow : public QMainWindow, private Ui::MainWindow
 {
@@ -24,8 +26,7 @@ private:
 	DemoWidget* demowidget;
 
 public:
-	MainWindow(QWidget* parent = 0);
-	virtual ~MainWindow();
+	MainWindow(QWidget* parent = nullptr);
 
 private slots:
 	// connect-by-name
