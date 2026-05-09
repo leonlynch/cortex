@@ -1,7 +1,7 @@
 /**
  * @file testwindow.h
  *
- * Copyright (c) 2013 Leon Lynch
+ * Copyright 2013, 2026 Leon Lynch
  *
  * This file is licensed under the terms of the MIT license.
  * See LICENSE file.
@@ -10,7 +10,7 @@
 #ifndef TEST_WINDOW_H
 #define TEST_WINDOW_H
 
-#include <QtGui/QOpenGLWindow>
+#include <QtOpenGL/QOpenGLWindow>
 #include <QtCore/QTimer>
 
 class TestWindow : public QOpenGLWindow

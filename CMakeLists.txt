@@ -5,7 +5,7 @@
 # See LICENSE file.
 ##############################################################################
 
-cmake_minimum_required(VERSION 3.11)
+cmake_minimum_required(VERSION 4.2)
 
 project(cortex)
 
@@ -19,16 +19,16 @@ if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
 	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb")
 endif()
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 find_package(Git REQUIRED)
 find_package(OpenGL REQUIRED)
-find_package(GLEW 2 REQUIRED)
-find_package(GLM 0.9.5 REQUIRED)
-find_package(Qt5Core 5.12 REQUIRED)
-find_package(Qt5Gui 5.12 REQUIRED)
-find_package(Qt5Widgets 5.12 REQUIRED)
-find_package(glfw3 3.2 REQUIRED)
-find_package(assimp 5 REQUIRED)
+find_package(GLEW 2.1 REQUIRED)
+find_package(glm 1.0 REQUIRED)
+find_package_handle_standard_args(glm CONFIG_MODE)
+find_package(Qt6 6.10 REQUIRED COMPONENTS Widgets OpenGL OpenGLWidgets)
+find_package_handle_standard_args(Qt6 CONFIG_MODE)
+find_package(glfw3 3.4 REQUIRED)
+find_package_handle_standard_args(glfw3 CONFIG_MODE)
+find_package(assimp 6 REQUIRED)
 
 execute_process(
 	COMMAND ${GIT_EXECUTABLE} describe --all

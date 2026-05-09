@@ -1,11 +1,9 @@
 ##############################################################################
-# Copyright (c) 2013 Leon Lynch
+# Copyright 2013, 2026 Leon Lynch
 #
 # This file is licensed under the terms of the MIT license.
 # See LICENSE file.
 ##############################################################################
-
-cmake_minimum_required(VERSION 3.11)
 
 set(LIBCORTEX_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR} CACHE PATH "libcortex include path")
 include_directories(${LIBCORTEX_INCLUDE_DIR})
@@ -18,4 +16,4 @@ add_library(cortex
 	material.cc
 	mesh.cc
 )
-target_link_libraries(cortex ${assimp_LIBRARIES})
+target_link_libraries(cortex assimp::assimp)

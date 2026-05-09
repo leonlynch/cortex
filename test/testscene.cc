@@ -1,7 +1,7 @@
 /**
  * @file testscene.cc
  *
- * Copyright (c) 2013 Leon Lynch
+ * Copyright 2013, 2026 Leon Lynch
  *
  * This file is licensed under the terms of the MIT license.
  * See LICENSE file.
@@ -29,6 +29,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#define GLM_ENABLE_EXPERIMENTAL // Because string_cast.hpp includes dual_quaternion.hpp
 #include <glm/gtx/string_cast.hpp>
 
 #include "bezier.h"

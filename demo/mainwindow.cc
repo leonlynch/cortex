@@ -1,7 +1,7 @@
 /**
  * @file mainwindow.cc
  *
- * Copyright (c) 2013 Leon Lynch
+ * Copyright 2013, 2026 Leon Lynch
  *
  * This file is licensed under the terms of the MIT license.
  * See LICENSE file.
@@ -19,12 +19,20 @@ MainWindow::MainWindow(QWidget* parent)
 
 	applicationVersionStr->setText(VERSION);
 
-	connect(animationCheckBox, &QCheckBox::stateChanged, animationIntervalSpinBox, &QSpinBox::setEnabled);
+	connect(animationCheckBox, &QCheckBox::checkStateChanged, animationIntervalSpinBox,
+		[this](Qt::CheckState state) {
+			animationIntervalSpinBox->setEnabled(state == Qt::Checked);
+		}
+	);
 
 	demowidget = new DemoWidget(this);
 	demowidget->setAnimation(animationCheckBox->isChecked());
 	demowidget->setAnimationInterval(animationIntervalSpinBox->value());
-	connect(animationCheckBox, &QCheckBox::stateChanged, demowidget, &DemoWidget::setAnimation);
+	connect(animationCheckBox, &QCheckBox::checkStateChanged, demowidget,
+		[this](Qt::CheckState state) {
+			demowidget->setAnimation(state == Qt::Checked);
+		}
+	);
 	connect(animationIntervalSpinBox, SIGNAL(valueChanged(int)), demowidget, SLOT(setAnimationInterval(int)));
 	connect(demowidget, &DemoWidget::log, this, &MainWindow::appendLog);
 	connect(demowidget, &DemoWidget::error, this, &MainWindow::appendError);
