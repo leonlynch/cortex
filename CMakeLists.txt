@@ -1,5 +1,5 @@
 ##############################################################################
-# Copyright (c) 2013 Leon Lynch
+# Copyright 2013, 2026 Leon Lynch
 #
 # This file is licensed under the terms of the MIT license.
 # See LICENSE file.
@@ -27,7 +27,6 @@ find_package(GLM 0.9.5 REQUIRED)
 find_package(Qt5Core 5.12 REQUIRED)
 find_package(Qt5Gui 5.12 REQUIRED)
 find_package(Qt5Widgets 5.12 REQUIRED)
-find_package(GLUT REQUIRED)
 find_package(glfw3 3.2 REQUIRED)
 find_package(assimp 5 REQUIRED)
 

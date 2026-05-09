@@ -1,5 +1,5 @@
 ##############################################################################
-# Copyright (c) 2013 Leon Lynch
+# Copyright 2013, 2026 Leon Lynch
 #
 # This file is licensed under the terms of the MIT license.
 # See LICENSE file.
@@ -14,10 +14,6 @@ set(TESTSCENE_SRCS testscene.cc ../src/teaset.cc ../src/internal/teaset_geometry
 set(GLFW_TEST_SRCS glfw_test.c ${TESTSCENE_SRCS})
 add_executable(glfw_test ${GLFW_TEST_SRCS})
 target_link_libraries(glfw_test glfw GLEW::GLEW OpenGL::GL)
-
-set(GLUT_TEST_SRCS glut_test.c ${TESTSCENE_SRCS})
-add_executable(glut_test ${GLUT_TEST_SRCS})
-target_link_libraries(glut_test GLUT::GLUT GLEW::GLEW OpenGL::GL)
 
 set(QT_TEST_SRCS qt_test.cc testwindow.cc ${TESTSCENE_SRCS})
 qt5_wrap_cpp(QT_TEST_MOC testwindow.h)
