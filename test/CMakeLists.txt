@@ -5,25 +5,26 @@
 # See LICENSE file.
 ##############################################################################
 
-include_directories(${LIBCORTEX_INCLUDE_DIR})
+add_library(testscene OBJECT
+	testscene.cc
+	../src/teaset.cc
+	../src/internal/teaset_geometry.cc
+)
+target_include_directories(testscene PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
-set(TESTSCENE_SRCS testscene.cc ../src/teaset.cc ../src/internal/teaset_geometry.cc)
+add_executable(glfw_test glfw_test.c)
+target_link_libraries(glfw_test testscene glfw GLEW::GLEW OpenGL::GL)
 
-set(GLFW_TEST_SRCS glfw_test.c ${TESTSCENE_SRCS})
-add_executable(glfw_test ${GLFW_TEST_SRCS})
-target_link_libraries(glfw_test glfw GLEW::GLEW OpenGL::GL)
-
-set(QT_TEST_SRCS qt_test.cc testwindow.cc ${TESTSCENE_SRCS})
 qt_wrap_cpp(QT_TEST_MOC testwindow.h)
-add_executable(qt_test ${QT_TEST_SRCS} ${QT_TEST_MOC})
-target_link_libraries(qt_test Qt6::OpenGL GLEW::GLEW OpenGL::GL)
+add_executable(qt_test qt_test.cc testwindow.cc ${QT_TEST_MOC})
+target_link_libraries(qt_test testscene Qt6::OpenGL GLEW::GLEW OpenGL::GL)
 
-set(QTWIDGET_TEST_SRCS qtwidget_test.cc testwidget.cc ${TESTSCENE_SRCS})
 qt_wrap_cpp(QTWIDGET_TEST_MOC testwidget.h)
-add_executable(qtwidget_test ${QTWIDGET_TEST_SRCS} ${QTWIDGET_TEST_MOC})
-target_link_libraries(qtwidget_test Qt6::OpenGLWidgets GLEW::GLEW OpenGL::GL)
+add_executable(qtwidget_test qtwidget_test.cc testwidget.cc ${QTWIDGET_TEST_MOC})
+target_link_libraries(qtwidget_test testscene Qt6::OpenGLWidgets GLEW::GLEW OpenGL::GL)
 
 add_executable(bezier_test bezier_test.cc)
+target_include_directories(bezier_test PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
 add_executable(teaset_test teaset_test.cc)
 target_link_libraries(teaset_test cortex)

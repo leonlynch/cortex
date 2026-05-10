@@ -5,9 +5,6 @@
 # See LICENSE file.
 ##############################################################################
 
-set(LIBCORTEX_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR} CACHE PATH "libcortex include path")
-include_directories(${LIBCORTEX_INCLUDE_DIR})
-
 add_library(cortex
 	teaset.cc
 	internal/teaset_geometry.cc
@@ -16,4 +13,12 @@ add_library(cortex
 	material.cc
 	mesh.cc
 )
-target_link_libraries(cortex assimp::assimp)
+target_include_directories(cortex
+	INTERFACE
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+		$<INSTALL_INTERFACE:include/cortex>
+)
+target_link_libraries(cortex
+	PRIVATE
+		assimp::assimp
+)

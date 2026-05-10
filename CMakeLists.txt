@@ -9,16 +9,43 @@ cmake_minimum_required(VERSION 4.2)
 
 project(cortex)
 
+# Configure compiler
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
+if(CMAKE_C_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 	add_compile_options(-Wall -Werror)
-	set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -ggdb")
-	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb")
+	add_compile_options($<$<CONFIG:Debug>:-ggdb3>)
+	add_compile_options($<$<CONFIG:Debug>:-fno-omit-frame-pointer>)
+	add_compile_options($<$<CONFIG:RelWithDebInfo>:-ggdb3>)
+endif()
+if(CMAKE_C_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	add_compile_options(-Wall -Werror)
+	add_compile_options($<$<CONFIG:Debug>:-g3>)
+	add_compile_options($<$<CONFIG:Debug>:-fno-omit-frame-pointer>)
+	add_compile_options($<$<CONFIG:RelWithDebInfo>:-g3>)
 endif()
 
+# Configure debugging sanitizers
+option(ENABLE_SANITIZERS "Enable debugging sanitizers" OFF)
+if(ENABLE_SANITIZERS)
+	if(CMAKE_C_COMPILER_ID MATCHES "^(GNU|Clang)$" OR
+		CMAKE_CXX_COMPILER_ID MATCHES "^(GNU|Clang)$"
+	)
+		add_compile_options(-fsanitize=address)
+		add_compile_options(-fsanitize=undefined)
+		add_link_options(-fsanitize=address)
+		add_link_options(-fsanitize=undefined)
+		add_compile_options(-fsanitize=leak)
+		add_link_options(-fsanitize=leak)
+	endif()
+endif()
+
+# Export compile commands for various IDEs
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# Project dependencies
 find_package(Git REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(GLEW 2.1 REQUIRED)

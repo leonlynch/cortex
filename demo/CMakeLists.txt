@@ -8,8 +8,6 @@
 set(DEMO_VERSION ${GIT_DESCRIBE})
 configure_file(demo_config.h.in demo_config.h)
 
-include_directories(${LIBCORTEX_INCLUDE_DIR})
-set(CMAKE_INCLUDE_CURRENT_DIR ON) # include generated files
 qt_wrap_ui(CORTEX_DEMO_UI mainwindow.ui)
 qt_wrap_cpp(CORTEX_DEMO_MOC mainwindow.h demowidget.h)
 add_executable(cortex_demo
@@ -19,6 +17,10 @@ add_executable(cortex_demo
 	${CORTEX_DEMO_UI}
 	${CORTEX_DEMO_MOC}
 	../test/testscene.cc # TODO: remove
+)
+target_include_directories(cortex_demo
+	PRIVATE
+		${CMAKE_CURRENT_BINARY_DIR} # For generated headers
 )
 target_link_libraries(cortex_demo
 	PRIVATE
