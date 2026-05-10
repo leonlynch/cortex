@@ -43,24 +43,24 @@ static int height = 0;
 static unsigned int tick = 0;
 static bool render_normals = false;
 
-// resources
+// Resources
 static GLuint program = 0;
 static GLuint vertex_shader = 0;
 static GLuint fragment_shader = 0;
 
-// uniform location map
+// Uniform location map
 typedef std::map<std::string, GLint> uniform_location_t;
 static uniform_location_t uniform_location;
 static GLint uniform_count = 0;
 static GLint uniform_max_length = 0;
 
-// attribute location map
+// Attribute location map
 typedef std::map<std::string, GLint> attribute_location_t;
 static attribute_location_t attribute_location;
 static GLint attribute_count = 0;
 static GLint attribute_max_length = 0;
 
-// fragment data output
+// Fragment data output
 static GLint fragdata_location = 0;
 
 struct vertex_t {
@@ -89,19 +89,19 @@ struct mesh_t {
 	normals_t normals;
 };
 
-// cube mesh
+// Cube mesh
 static Cube<glm::vec3> cube;
 static std::vector<vertex_t> cube_vertices;
 static std::vector<unsigned int> cube_indices;
 static mesh_t cube_mesh;
 
-// octahedron mesh
+// Octahedron mesh
 static Octahedron<glm::vec3> octahedron;
 static std::vector<vertex_t> octahedron_vertices;
 static std::vector<unsigned int> octahedron_indices;
 static mesh_t octahedron_mesh;
 
-// bezier surface mesh
+// Bezier surface mesh
 static glm::vec3 bezier_surface_data[4][4] = {
 	{ { 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 2.0f, 0.0f }, { 0.0f, 3.0f, 0.0f }, },
 	{ { 1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 2.0f, 1.0f }, { 1.0f, 3.0f, 0.0f }, },
@@ -138,7 +138,7 @@ static std::vector<vertex_t> sphere_vertices;
 static std::vector<unsigned int> sphere_indices;
 static mesh_t sphere_mesh;
 
-// helper function declarations
+// Helper function declarations
 static void scene_update_mesh(const std::vector<vertex_t>& vertices, const std::vector<unsigned int>& indices, mesh_t* mesh);
 static void scene_update_mesh_normals(const std::vector<vertex_t>& vertices, normals_t* normals);
 
@@ -182,7 +182,7 @@ int scene_init(void)
 		return -1;
 	}
 
-	// multisampling
+	// Multisampling
 	glEnable(GL_MULTISAMPLE);
 	GLint msaa = 0;
 	glGetIntegerv(GL_SAMPLES, &msaa);
@@ -192,16 +192,16 @@ int scene_init(void)
 		std::printf("MSAA disabled\n");
 	}
 
-	// debugging
+	// Debugging
 	glDebugMessageCallback(&scene_debug, NULL);
 	glEnable(GL_DEBUG_OUTPUT);
 	std::printf("Debug enabled\n");
 
-	// depth testing
+	// Depth testing
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
 
-	// back face culling
+	// Back face culling
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
 
@@ -277,19 +277,19 @@ static GLuint scene_load_shader(const std::string& filename, GLenum shader_type)
 		goto error;
 	}
 
-	// compile shader
+	// Compile shader
 	source_ptr = source.c_str();
 	glShaderSource(shader, 1, &source_ptr, NULL);
 	glCompileShader(shader);
 
-	// retrieve shader info log
+	// Retrieve shader info log
 	glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &info_log_len);
 	if (info_log_len > 1) {
 		info_log.resize(info_log_len);
 		glGetShaderInfoLog(shader, info_log.size(), NULL, info_log.data());
 	}
 
-	// check shader compile status
+	// Check shader compile status
 	glGetShaderiv(shader, GL_COMPILE_STATUS, &compile_status);
 	if (compile_status != GL_TRUE) {
 		fprintf(stderr, "Failed to compile shader:\n");
@@ -323,28 +323,32 @@ exit:
 
 static void scene_load_mesh(const std::vector<vertex_t>& vertices, const std::vector<unsigned int>& indices, mesh_t* mesh)
 {
-	// create vertex array object and vertex/index buffer objects
+	// VAO layout:
+	// - VBO #0 for position and normal data (interleaved)
+	// - IBO for element indexes
+
+	// Create vertex array object and vertex/index buffer objects
 	glCreateVertexArrays(1, &mesh->vao);
 	glCreateBuffers(1, &mesh->vbo);
 	glCreateBuffers(1, &mesh->ibo);
 
-	// bind buffer objects to vertex array object
+	// Bind buffer objects to vertex array object
 	glVertexArrayVertexBuffer(mesh->vao, mesh->vbo_binding, mesh->vbo, 0, sizeof(struct vertex_t));
 	glVertexArrayElementBuffer(mesh->vao, mesh->ibo);
 
-	// setup format and binding for vertex data
+	// Setup format and binding for vertex data
 	GLuint pos_loc = attribute_location["v_position"];
 	glEnableVertexArrayAttrib(mesh->vao, pos_loc);
 	glVertexArrayAttribBinding(mesh->vao, pos_loc, mesh->vbo_binding);
 	glVertexArrayAttribFormat(mesh->vao, pos_loc, 3, GL_FLOAT, GL_FALSE, 0);
 
-	// setup format and binding for normal data
+	// Setup format and binding for normal data
 	GLuint norm_loc = attribute_location["v_normal"];
 	glEnableVertexArrayAttrib(mesh->vao, norm_loc);
 	glVertexArrayAttribBinding(mesh->vao, norm_loc, mesh->vbo_binding);
 	glVertexArrayAttribFormat(mesh->vao, norm_loc, 3, GL_FLOAT, GL_FALSE, offsetof(struct vertex_t, normal));
 
-	// load data
+	// Load data
 	scene_update_mesh(vertices, indices, mesh);
 }
 
@@ -353,11 +357,11 @@ static void scene_update_mesh(const std::vector<vertex_t>& vertices, const std::
 	using vertex_type = std::remove_reference<decltype(vertices)>::type::value_type;
 	using index_type = std::remove_reference<decltype(indices)>::type::value_type;
 
-	// update existing vertex buffer object
+	// Update existing vertex buffer object
 	glNamedBufferData(mesh->vbo, vertices.size() * sizeof(vertex_type), vertices.data(), GL_DYNAMIC_DRAW);
 	mesh->vertex_count = vertices.size();
 
-	// update existing index buffer object
+	// Update existing index buffer object
 	glNamedBufferData(mesh->ibo, indices.size() * sizeof(index_type), indices.data(), GL_DYNAMIC_DRAW);
 	mesh->index_count = indices.size();
 
@@ -366,26 +370,30 @@ static void scene_update_mesh(const std::vector<vertex_t>& vertices, const std::
 
 static void scene_load_mesh_normals(const std::vector<vertex_t>& vertices, normals_t* normals)
 {
-	// create vertex array object and vertex buffer object
+	// VAO layout:
+	// - VBO #0 for position
+	// - No IBO
+
+	// Create vertex array object and vertex buffer object
 	glCreateVertexArrays(1, &normals->vao);
 	glCreateBuffers(1, &normals->vbo);
 
-	// bind vertex buffer to vertex array object
+	// Bind vertex buffer to vertex array object
 	glVertexArrayVertexBuffer(normals->vao, normals->vbo_binding, normals->vbo, 0, sizeof(glm::vec3));
 
-	// setup format and binding for vertex data
+	// Setup format and binding for vertex data
 	GLuint pos_loc = attribute_location["v_position"];
 	glEnableVertexArrayAttrib(normals->vao, pos_loc);
 	glVertexArrayAttribBinding(normals->vao, pos_loc, normals->vbo_binding);
 	glVertexArrayAttribFormat(normals->vao, pos_loc, 3, GL_FLOAT, GL_FALSE, 0);
 
-	// load data
+	// Load data
 	scene_update_mesh_normals(vertices, normals);
 }
 
 static void scene_update_mesh_normals(const std::vector<vertex_t>& vertices, normals_t* normals)
 {
-	// generate vertices representing normal lines
+	// Generate vertices representing normal lines
 	using line_type = std::pair<glm::vec3,glm::vec3>;
 	std::vector<line_type> normal_lines;
 	normal_lines.reserve(vertices.size());
@@ -396,7 +404,7 @@ static void scene_update_mesh_normals(const std::vector<vertex_t>& vertices, nor
 		);
 	}
 
-	// update existing vertex buffer object
+	// Update existing vertex buffer object
 	glNamedBufferData(normals->vbo, normal_lines.size() * sizeof(line_type), normal_lines.data(), GL_DYNAMIC_DRAW);
 	normals->vertex_count = normal_lines.size() * 2; // two vertices per line
 
@@ -428,11 +436,11 @@ int scene_load_resources(void)
 		return -1;
 	}
 
-	// add shaders to program
+	// Add shaders to program
 	glAttachShader(program, vertex_shader);
 	glAttachShader(program, fragment_shader);
 
-	// link program
+	// Link program
 	glLinkProgram(program);
 	info_log_len = 0;
 	info_log.clear();
@@ -451,7 +459,7 @@ int scene_load_resources(void)
 		printf("Shader program log:\n%s\n", info_log.data());
 	}
 
-	// validate program
+	// Validate program
 	glValidateProgram(program);
 	info_log_len = 0;
 	info_log.clear();
@@ -467,7 +475,7 @@ int scene_load_resources(void)
 		return -1;
 	}
 
-	// lookup all uniforms
+	// Lookup all uniforms
 	glGetProgramiv(program, GL_ACTIVE_UNIFORMS, &uniform_count);
 	glGetProgramiv(program, GL_ACTIVE_UNIFORM_MAX_LENGTH, &uniform_max_length);
 	for (int i = 0; i < uniform_count; ++i) {
@@ -479,7 +487,7 @@ int scene_load_resources(void)
 		printf("%s(); uniform='%s'; size=%d; type=%d; location=%d\n", __FUNCTION__, uniform_name, uniform_size, uniform_type, uniform_location[uniform_name]);
 	}
 
-	// lookup all attributes
+	// Lookup all attributes
 	glGetProgramiv(program, GL_ACTIVE_ATTRIBUTES, &attribute_count);
 	glGetProgramiv(program, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, &attribute_max_length);
 	for (int i = 0; i < attribute_count; ++i) {
@@ -491,41 +499,41 @@ int scene_load_resources(void)
 		printf("%s(); attribute='%s'; size=%d; type=%d; location=%d\n", __FUNCTION__, attribute_name, attribute_size, attribute_type, attribute_location[attribute_name]);
 	}
 
-	// lookup fragment output
+	// Lookup fragment output
 	fragdata_location = glGetFragDataLocation(program, "color");
 	printf("%s(); fragdata='%s'; location=%d\n", __FUNCTION__, "color", fragdata_location);
 
-	// load cube mesh
+	// Load cube mesh
 	cube.tesselate(cube_vertices, cube_indices);
 	scene_load_mesh(cube_vertices, cube_indices, &cube_mesh);
 	scene_load_mesh_normals(cube_vertices, &cube_mesh.normals);
 
-	// load octahedron mesh
+	// Load octahedron mesh
 	octahedron.tesselate(octahedron_vertices, octahedron_indices);
 	scene_load_mesh(octahedron_vertices, octahedron_indices, &octahedron_mesh);
 	scene_load_mesh_normals(octahedron_vertices, &octahedron_mesh.normals);
 
-	// load bezier surface mesh
+	// Load bezier surface mesh
 	bezier_surface.tesselate(16, 16, bezier_surface_vertices, bezier_surface_indices);
 	scene_load_mesh(bezier_surface_vertices, bezier_surface_indices, &bezier_surface_mesh);
 	scene_load_mesh_normals(bezier_surface_vertices, &bezier_surface_mesh.normals);
 
-	// load teapot mesh
+	// Load teapot mesh
 	teapot.tesselate(12, 12, teapot_vertices, teapot_indices);
 	scene_load_mesh(teapot_vertices, teapot_indices, &teapot_mesh);
 	scene_load_mesh_normals(teapot_vertices, &teapot_mesh.normals);
 
-	// load teacup mesh
+	// Load teacup mesh
 	teacup.tesselate(8, 8, teacup_vertices, teacup_indices);
 	scene_load_mesh(teacup_vertices, teacup_indices, &teacup_mesh);
 	scene_load_mesh_normals(teacup_vertices, &teacup_mesh.normals);
 
-	// load teaspoon mesh
+	// Load teaspoon mesh
 	teaspoon.tesselate(8, 8, teaspoon_vertices, teaspoon_indices);
 	scene_load_mesh(teaspoon_vertices, teaspoon_indices, &teaspoon_mesh);
 	scene_load_mesh_normals(teaspoon_vertices, &teaspoon_mesh.normals);
 
-	// load sphere mesh
+	// Load sphere mesh
 	sphere.tesselate(3, sphere_vertices, sphere_indices);
 	scene_load_mesh(sphere_vertices, sphere_indices, &sphere_mesh);
 	scene_load_mesh_normals(sphere_vertices, &sphere_mesh.normals);
@@ -593,7 +601,7 @@ void scene_render(enum scene_demo_t scene_demo)
 
 	glViewport(0, 0, width, height);
 
-	// uniform matrices
+	// Uniform matrices
 	glm::mat4 m_projection = glm::perspective(glm::radians(45.0f), width / (float)height, 0.1f, 100.0f);
 	glm::mat4 m_view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -8.0f));
 	glm::mat4 m_model_rotate_x = glm::rotate(glm::mat4(1.0f), glm::radians((float)tick / 2.0f), glm::vec3(1.0f, 0.0f, 0.0f));
@@ -608,7 +616,7 @@ void scene_render(enum scene_demo_t scene_demo)
 	glProgramUniformMatrix4fv(program, uniform_location["m_modelview"], 1, GL_FALSE, glm::value_ptr(m_modelview));
 	glProgramUniformMatrix3fv(program, uniform_location["m_normal"], 1, GL_FALSE, glm::value_ptr(m_normal));
 
-	// uniform light parameters
+	// Uniform light parameters
 	glm::vec4 light_position = glm::vec4(15.0f, 15.0f, 15.0f, 1.0f);
 	glm::vec3 light_ambient = glm::vec3(0.2f, 0.2f, 0.2f);
 	glm::vec3 light_diffuse = glm::vec3(0.8f, 0.8f, 0.8f);
@@ -619,7 +627,7 @@ void scene_render(enum scene_demo_t scene_demo)
 	glProgramUniform3fv(program, uniform_location["light.diffuse"], 1, glm::value_ptr(light_diffuse));
 	glProgramUniform3fv(program, uniform_location["light.specular"], 1, glm::value_ptr(light_specular));
 
-	// uniform material parameters
+	// Uniform material parameters
 	glm::vec3 material_ambient = glm::vec3(0.2f, 0.0f, 0.0f);
 	glm::vec3 material_diffuse = glm::vec3(0.8f, 0.0f, 0.0f);
 	glm::vec3 material_specular = glm::vec3(1.0f, 1.0f, 1.0f);
@@ -630,7 +638,7 @@ void scene_render(enum scene_demo_t scene_demo)
 	glProgramUniform3fv(program, uniform_location["material.specular"], 1, glm::value_ptr(material_specular));
 	glProgramUniform1f(program, uniform_location["material.shininess"], material_shininess);
 
-	// determine current mesh
+	// Determine current mesh
 	mesh_t* current_mesh = nullptr;
 	switch (scene_demo) {
 		case SCENE_DEMO_CUBE: current_mesh = &cube_mesh; break;
@@ -643,30 +651,30 @@ void scene_render(enum scene_demo_t scene_demo)
 		default: current_mesh = &cube_mesh;
 	}
 
-	// render current mesh
+	// Render current mesh
 	glUseProgram(program);
 	glBindVertexArray(current_mesh->vao);
 	glDrawElements(GL_TRIANGLES, current_mesh->index_count, GL_UNSIGNED_INT, 0);
 
 	if (render_normals && current_mesh->normals.vao) {
-		// update uniform light parameters for normal lines
+		// Update uniform light parameters for normal lines
 		light_ambient = glm::vec3(1.0f, 1.0f, 1.0f);
 		light_diffuse = glm::vec3(1.0f, 1.0f, 1.0f);
 		glProgramUniform3fv(program, uniform_location["light.ambient"], 1, glm::value_ptr(light_ambient));
 		glProgramUniform3fv(program, uniform_location["light.diffuse"], 1, glm::value_ptr(light_diffuse));
 
-		// update uniform material parameters for normal lines
+		// Update uniform material parameters for normal lines
 		material_ambient = glm::vec3(1.0f, 1.0f, 1.0f);
 		material_diffuse = glm::vec3(1.0f, 1.0f, 1.0f);
 		glProgramUniform3fv(program, uniform_location["material.ambient"], 1, glm::value_ptr(material_ambient));
 		glProgramUniform3fv(program, uniform_location["material.diffuse"], 1, glm::value_ptr(material_diffuse));
 
-		// render current normals
+		// Render current normals
 		glBindVertexArray(current_mesh->normals.vao);
 		glDrawArrays(GL_LINES, 0, current_mesh->normals.vertex_count);
 	}
 
-	// cleanup
+	// Cleanup
 	glBindVertexArray(0);
 	glUseProgram(0);
 }
@@ -694,7 +702,7 @@ void scene_set_complexity(int subdivision_delta)
 {
 	std::size_t sub_count;
 
-	// clear data
+	// Clear data
 	bezier_surface_vertices.clear();
 	bezier_surface_indices.clear();
 	teapot_vertices.clear();
@@ -706,31 +714,31 @@ void scene_set_complexity(int subdivision_delta)
 	sphere_vertices.clear();
 	sphere_indices.clear();
 
-	// update bezier surface mesh
+	// Update bezier surface mesh
 	sub_count = glm::clamp(16 + subdivision_delta, 2, 24);
 	bezier_surface.tesselate(sub_count, sub_count, bezier_surface_vertices, bezier_surface_indices);
 	scene_update_mesh(bezier_surface_vertices, bezier_surface_indices, &bezier_surface_mesh);
 	scene_update_mesh_normals(bezier_surface_vertices, &bezier_surface_mesh.normals);
 
-	// update teapot mesh
+	// Update teapot mesh
 	sub_count = glm::clamp(12 + subdivision_delta, 2, 24);
 	teapot.tesselate(sub_count, sub_count, teapot_vertices, teapot_indices);
 	scene_update_mesh(teapot_vertices, teapot_indices, &teapot_mesh);
 	scene_update_mesh_normals(teapot_vertices, &teapot_mesh.normals);
 
-	// update teacup mesh
+	// Update teacup mesh
 	sub_count = glm::clamp(8 + subdivision_delta, 2, 16);
 	teacup.tesselate(sub_count, sub_count, teacup_vertices, teacup_indices);
 	scene_update_mesh(teacup_vertices, teacup_indices, &teacup_mesh);
 	scene_update_mesh_normals(teacup_vertices, &teacup_mesh.normals);
 
-	// update teaspoon mesh
+	// Update teaspoon mesh
 	sub_count = glm::clamp(8 + subdivision_delta, 2, 16);
 	teaspoon.tesselate(sub_count, sub_count, teaspoon_vertices, teaspoon_indices);
 	scene_update_mesh(teaspoon_vertices, teaspoon_indices, &teaspoon_mesh);
 	scene_update_mesh_normals(teaspoon_vertices, &teaspoon_mesh.normals);
 
-	// update sphere mesh
+	// Update sphere mesh
 	sub_count = glm::clamp(3 + subdivision_delta, 0, 4);
 	sphere.tesselate(sub_count, sphere_vertices, sphere_indices);
 	scene_update_mesh(sphere_vertices, sphere_indices, &sphere_mesh);
