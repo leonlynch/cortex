@@ -72,6 +72,7 @@ struct normals_t {
 	GLuint vao = 0;
 
 	GLuint vbo = 0;
+	GLuint vbo_binding = 0;
 	GLsizei vertex_count = 0;
 };
 
@@ -79,6 +80,7 @@ struct mesh_t {
 	GLuint vao = 0;
 
 	GLuint vbo = 0;
+	GLuint vbo_binding = 0;
 	GLsizei vertex_count = 0;
 
 	GLuint ibo = 0;
@@ -191,11 +193,9 @@ int scene_init(void)
 	}
 
 	// debugging
-	if (GLEW_KHR_debug) { // KHR_debug is part of OpenGL-4.3 core
-		glDebugMessageCallback(&scene_debug, NULL);
-		glEnable(GL_DEBUG_OUTPUT);
-		std::printf("Debug enabled\n");
-	}
+	glDebugMessageCallback(&scene_debug, NULL);
+	glEnable(GL_DEBUG_OUTPUT);
+	std::printf("Debug enabled\n");
 
 	// depth testing
 	glEnable(GL_DEPTH_TEST);
@@ -323,26 +323,29 @@ exit:
 
 static void scene_load_mesh(const std::vector<vertex_t>& vertices, const std::vector<unsigned int>& indices, mesh_t* mesh)
 {
-	// generate new vertex array object
-	glGenVertexArrays(1, &mesh->vao);
-	glBindVertexArray(mesh->vao);
+	// create vertex array object and vertex/index buffer objects
+	glCreateVertexArrays(1, &mesh->vao);
+	glCreateBuffers(1, &mesh->vbo);
+	glCreateBuffers(1, &mesh->ibo);
 
-	// generate and setup new vertex buffer object
-	glGenBuffers(1, &mesh->vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
-	glEnableVertexAttribArray(attribute_location["v_position"]);
-	glVertexAttribPointer(attribute_location["v_position"], 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex_t), 0);
-	glEnableVertexAttribArray(attribute_location["v_normal"]);
-	glVertexAttribPointer(attribute_location["v_normal"], 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex_t), (const GLvoid*)offsetof(struct vertex_t, normal));
+	// bind buffer objects to vertex array object
+	glVertexArrayVertexBuffer(mesh->vao, mesh->vbo_binding, mesh->vbo, 0, sizeof(struct vertex_t));
+	glVertexArrayElementBuffer(mesh->vao, mesh->ibo);
 
-	// generate new index buffer object
-	glGenBuffers(1, &mesh->ibo);
+	// setup format and binding for vertex data
+	GLuint pos_loc = attribute_location["v_position"];
+	glEnableVertexArrayAttrib(mesh->vao, pos_loc);
+	glVertexArrayAttribBinding(mesh->vao, pos_loc, mesh->vbo_binding);
+	glVertexArrayAttribFormat(mesh->vao, pos_loc, 3, GL_FLOAT, GL_FALSE, 0);
+
+	// setup format and binding for normal data
+	GLuint norm_loc = attribute_location["v_normal"];
+	glEnableVertexArrayAttrib(mesh->vao, norm_loc);
+	glVertexArrayAttribBinding(mesh->vao, norm_loc, mesh->vbo_binding);
+	glVertexArrayAttribFormat(mesh->vao, norm_loc, 3, GL_FLOAT, GL_FALSE, offsetof(struct vertex_t, normal));
 
 	// load data
 	scene_update_mesh(vertices, indices, mesh);
-
-	// unbind vertex array object
-	glBindVertexArray(0);
 }
 
 static void scene_update_mesh(const std::vector<vertex_t>& vertices, const std::vector<unsigned int>& indices, mesh_t* mesh)
@@ -350,42 +353,34 @@ static void scene_update_mesh(const std::vector<vertex_t>& vertices, const std::
 	using vertex_type = std::remove_reference<decltype(vertices)>::type::value_type;
 	using index_type = std::remove_reference<decltype(indices)>::type::value_type;
 
-	// bind existing vertex array object
-	glBindVertexArray(mesh->vao);
-
 	// update existing vertex buffer object
-	glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
-	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(vertex_type), vertices.data(), GL_DYNAMIC_DRAW);
+	glNamedBufferData(mesh->vbo, vertices.size() * sizeof(vertex_type), vertices.data(), GL_DYNAMIC_DRAW);
 	mesh->vertex_count = vertices.size();
 
 	// update existing index buffer object
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->ibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(index_type), indices.data(), GL_DYNAMIC_DRAW);
+	glNamedBufferData(mesh->ibo, indices.size() * sizeof(index_type), indices.data(), GL_DYNAMIC_DRAW);
 	mesh->index_count = indices.size();
-
-	// unbind vertex array object
-	glBindVertexArray(0);
 
 	printf("%s(); vao=%u; vbo=%u[%zu]; ibo=%u[%zu]\n", __FUNCTION__, mesh->vao, mesh->vbo, vertices.size(), mesh->ibo, indices.size());
 }
 
 static void scene_load_mesh_normals(const std::vector<vertex_t>& vertices, normals_t* normals)
 {
-	// generate new vertex array object
-	glGenVertexArrays(1, &normals->vao);
-	glBindVertexArray(normals->vao);
+	// create vertex array object and vertex buffer object
+	glCreateVertexArrays(1, &normals->vao);
+	glCreateBuffers(1, &normals->vbo);
 
-	// generate and setup new vertex buffer object
-	glGenBuffers(1, &normals->vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, normals->vbo);
-	glEnableVertexAttribArray(attribute_location["v_position"]);
-	glVertexAttribPointer(attribute_location["v_position"], 3, GL_FLOAT, GL_FALSE, 0, 0);
+	// bind vertex buffer to vertex array object
+	glVertexArrayVertexBuffer(normals->vao, normals->vbo_binding, normals->vbo, 0, sizeof(glm::vec3));
+
+	// setup format and binding for vertex data
+	GLuint pos_loc = attribute_location["v_position"];
+	glEnableVertexArrayAttrib(normals->vao, pos_loc);
+	glVertexArrayAttribBinding(normals->vao, pos_loc, normals->vbo_binding);
+	glVertexArrayAttribFormat(normals->vao, pos_loc, 3, GL_FLOAT, GL_FALSE, 0);
 
 	// load data
 	scene_update_mesh_normals(vertices, normals);
-
-	// unbind vertex array object
-	glBindVertexArray(0);
 }
 
 static void scene_update_mesh_normals(const std::vector<vertex_t>& vertices, normals_t* normals)
@@ -401,12 +396,8 @@ static void scene_update_mesh_normals(const std::vector<vertex_t>& vertices, nor
 		);
 	}
 
-	// bind existing vertex array object
-	glBindVertexArray(normals->vao);
-
 	// update existing vertex buffer object
-	glBindBuffer(GL_ARRAY_BUFFER, normals->vbo);
-	glBufferData(GL_ARRAY_BUFFER, normal_lines.size() * sizeof(line_type), normal_lines.data(), GL_DYNAMIC_DRAW);
+	glNamedBufferData(normals->vbo, normal_lines.size() * sizeof(line_type), normal_lines.data(), GL_DYNAMIC_DRAW);
 	normals->vertex_count = normal_lines.size() * 2; // two vertices per line
 
 	printf("%s(); vao=%u; vbo=%u[%zu]\n", __FUNCTION__, normals->vao, normals->vbo, normal_lines.size());
@@ -495,7 +486,7 @@ int scene_load_resources(void)
 		GLchar attribute_name[attribute_max_length];
 		GLint attribute_size = 0;
 		GLenum attribute_type = 0;
-		glGetActiveAttrib(program, i, sizeof(attribute_name), NULL, &attribute_size, & attribute_type, attribute_name);
+		glGetActiveAttrib(program, i, sizeof(attribute_name), NULL, &attribute_size, &attribute_type, attribute_name);
 		attribute_location[attribute_name] = glGetAttribLocation(program, attribute_name);
 		printf("%s(); attribute='%s'; size=%d; type=%d; location=%d\n", __FUNCTION__, attribute_name, attribute_size, attribute_type, attribute_location[attribute_name]);
 	}
@@ -601,7 +592,6 @@ void scene_render(enum scene_demo_t scene_demo)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glViewport(0, 0, width, height);
-	glUseProgram(program);
 
 	// uniform matrices
 	glm::mat4 m_projection = glm::perspective(glm::radians(45.0f), width / (float)height, 0.1f, 100.0f);
@@ -614,9 +604,9 @@ void scene_render(enum scene_demo_t scene_demo)
 	glm::mat4 m_mvp = m_projection * m_modelview;
 	glm::mat3 m_normal = glm::inverseTranspose(glm::mat3(m_modelview));
 
-	glUniformMatrix4fv(uniform_location["m_mvp"], 1, GL_FALSE, glm::value_ptr(m_mvp));
-	glUniformMatrix4fv(uniform_location["m_modelview"], 1, GL_FALSE, glm::value_ptr(m_modelview));
-	glUniformMatrix3fv(uniform_location["m_normal"], 1, GL_FALSE, glm::value_ptr(m_normal));
+	glProgramUniformMatrix4fv(program, uniform_location["m_mvp"], 1, GL_FALSE, glm::value_ptr(m_mvp));
+	glProgramUniformMatrix4fv(program, uniform_location["m_modelview"], 1, GL_FALSE, glm::value_ptr(m_modelview));
+	glProgramUniformMatrix3fv(program, uniform_location["m_normal"], 1, GL_FALSE, glm::value_ptr(m_normal));
 
 	// uniform light parameters
 	glm::vec4 light_position = glm::vec4(15.0f, 15.0f, 15.0f, 1.0f);
@@ -624,10 +614,10 @@ void scene_render(enum scene_demo_t scene_demo)
 	glm::vec3 light_diffuse = glm::vec3(0.8f, 0.8f, 0.8f);
 	glm::vec3 light_specular = glm::vec3(1.0f, 1.0f, 1.0f);
 
-	glUniform4fv(uniform_location["light.position"], 1, glm::value_ptr(light_position));
-	glUniform3fv(uniform_location["light.ambient"], 1, glm::value_ptr(light_ambient));
-	glUniform3fv(uniform_location["light.diffuse"], 1, glm::value_ptr(light_diffuse));
-	glUniform3fv(uniform_location["light.specular"], 1, glm::value_ptr(light_specular));
+	glProgramUniform4fv(program, uniform_location["light.position"], 1, glm::value_ptr(light_position));
+	glProgramUniform3fv(program, uniform_location["light.ambient"], 1, glm::value_ptr(light_ambient));
+	glProgramUniform3fv(program, uniform_location["light.diffuse"], 1, glm::value_ptr(light_diffuse));
+	glProgramUniform3fv(program, uniform_location["light.specular"], 1, glm::value_ptr(light_specular));
 
 	// uniform material parameters
 	glm::vec3 material_ambient = glm::vec3(0.2f, 0.0f, 0.0f);
@@ -635,10 +625,10 @@ void scene_render(enum scene_demo_t scene_demo)
 	glm::vec3 material_specular = glm::vec3(1.0f, 1.0f, 1.0f);
 	float material_shininess = 25;
 
-	glUniform3fv(uniform_location["material.ambient"], 1, glm::value_ptr(material_ambient));
-	glUniform3fv(uniform_location["material.diffuse"], 1, glm::value_ptr(material_diffuse));
-	glUniform3fv(uniform_location["material.specular"], 1, glm::value_ptr(material_specular));
-	glUniform1f(uniform_location["material.shininess"], material_shininess);
+	glProgramUniform3fv(program, uniform_location["material.ambient"], 1, glm::value_ptr(material_ambient));
+	glProgramUniform3fv(program, uniform_location["material.diffuse"], 1, glm::value_ptr(material_diffuse));
+	glProgramUniform3fv(program, uniform_location["material.specular"], 1, glm::value_ptr(material_specular));
+	glProgramUniform1f(program, uniform_location["material.shininess"], material_shininess);
 
 	// determine current mesh
 	mesh_t* current_mesh = nullptr;
@@ -654,6 +644,7 @@ void scene_render(enum scene_demo_t scene_demo)
 	}
 
 	// render current mesh
+	glUseProgram(program);
 	glBindVertexArray(current_mesh->vao);
 	glDrawElements(GL_TRIANGLES, current_mesh->index_count, GL_UNSIGNED_INT, 0);
 
@@ -661,14 +652,14 @@ void scene_render(enum scene_demo_t scene_demo)
 		// update uniform light parameters for normal lines
 		light_ambient = glm::vec3(1.0f, 1.0f, 1.0f);
 		light_diffuse = glm::vec3(1.0f, 1.0f, 1.0f);
-		glUniform3fv(uniform_location["light.ambient"], 1, glm::value_ptr(light_ambient));
-		glUniform3fv(uniform_location["light.diffuse"], 1, glm::value_ptr(light_diffuse));
+		glProgramUniform3fv(program, uniform_location["light.ambient"], 1, glm::value_ptr(light_ambient));
+		glProgramUniform3fv(program, uniform_location["light.diffuse"], 1, glm::value_ptr(light_diffuse));
 
 		// update uniform material parameters for normal lines
 		material_ambient = glm::vec3(1.0f, 1.0f, 1.0f);
 		material_diffuse = glm::vec3(1.0f, 1.0f, 1.0f);
-		glUniform3fv(uniform_location["material.ambient"], 1, glm::value_ptr(material_ambient));
-		glUniform3fv(uniform_location["material.diffuse"], 1, glm::value_ptr(material_diffuse));
+		glProgramUniform3fv(program, uniform_location["material.ambient"], 1, glm::value_ptr(material_ambient));
+		glProgramUniform3fv(program, uniform_location["material.diffuse"], 1, glm::value_ptr(material_diffuse));
 
 		// render current normals
 		glBindVertexArray(current_mesh->normals.vao);

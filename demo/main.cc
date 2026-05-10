@@ -1,7 +1,7 @@
 /**
  * @file main.cc
  *
- * Copyright (c) 2013 Leon Lynch
+ * Copyright 2013, 2026 Leon Lynch
  *
  * This file is licensed under the terms of the MIT license.
  * See LICENSE file.
@@ -19,7 +19,7 @@ int main(int argc, char** argv)
 
 	QSurfaceFormat format(QSurfaceFormat::DebugContext);
 	format.setRenderableType(QSurfaceFormat::OpenGL);
-	format.setVersion(3, 3);
+	format.setVersion(4, 6);
 	format.setProfile(QSurfaceFormat::CoreProfile);
 	format.setDepthBufferSize(32);
 	format.setSwapBehavior(QSurfaceFormat::DoubleBuffer);

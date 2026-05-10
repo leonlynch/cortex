@@ -8,7 +8,7 @@ Dependencies
 
 * C++11 compiler such as GCC or Clang
 * [CMake](https://cmake.org/) 4.2 or greater
-* [OpenGL](https://www.opengl.org/) 3.3 or greater
+* [OpenGL](https://www.opengl.org/) 4.6 or greater
 * [GLEW](https://glew.sourceforge.net/) 2.1 or greater
 * [GLM](https://github.com/g-truc/glm) 1.0 or greater
 * [GLFW](https://www.glfw.org/) 3.4 or greater
