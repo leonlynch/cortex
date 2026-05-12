@@ -12,6 +12,7 @@ add_library(cortex
 	entity.cc
 	material.cc
 	mesh.cc
+	gldebug.cc
 )
 target_include_directories(cortex
 	INTERFACE
@@ -21,4 +22,6 @@ target_include_directories(cortex
 target_link_libraries(cortex
 	PRIVATE
 		assimp::assimp
+		GLEW::GLEW
+		OpenGL::GL
 )

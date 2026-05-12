@@ -9,6 +9,7 @@ add_library(testscene OBJECT
 	testscene.cc
 	../src/teaset.cc
 	../src/internal/teaset_geometry.cc
+	../src/gldebug.cc
 )
 target_include_directories(testscene PRIVATE ${CMAKE_SOURCE_DIR}/src)
 

@@ -36,6 +36,7 @@
 #include "teaset.h"
 #include "sphere.h"
 #include "shape.h"
+#include "gldebug.h"
 
 static bool ready = 0;
 static int width = 0;
@@ -142,18 +143,6 @@ static mesh_t sphere_mesh;
 static void scene_update_mesh(const std::vector<vertex_t>& vertices, const std::vector<unsigned int>& indices, mesh_t* mesh);
 static void scene_update_mesh_normals(const std::vector<vertex_t>& vertices, normals_t* normals);
 
-static void scene_debug(
-	GLenum source,
-	GLenum type,
-	GLuint id,
-	GLenum severity,
-	GLsizei length,
-	const GLchar* message,
-	const void* userParam
-)
-{
-	fprintf(stderr, "source=%u; type=%u; id=%u; severity=%u; length=%d; message='%s'\n", source, type, id, severity, length, message);
-}
 
 int scene_init(void)
 {
@@ -193,8 +182,9 @@ int scene_init(void)
 	}
 
 	// Debugging
-	glDebugMessageCallback(&scene_debug, NULL);
+	glDebugMessageCallback(&cortex_gldebug, NULL);
 	glEnable(GL_DEBUG_OUTPUT);
+	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 	std::printf("Debug enabled\n");
 
 	// Depth testing
