@@ -36,3 +36,6 @@ target_link_libraries(assimp_test assimp::assimp)
 
 add_executable(cortex_test cortex_test.cc)
 target_link_libraries(cortex_test cortex)
+
+add_executable(noise_test noise_test.cc)
+target_include_directories(noise_test PRIVATE ${CMAKE_SOURCE_DIR}/src)
