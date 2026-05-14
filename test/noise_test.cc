@@ -217,6 +217,49 @@ static void test_reproducibility_4d_yup()
 	std::printf("4D Y-up reproducibility: OK\n");
 }
 
+static void test_normals_gradient()
+{
+	// Verify the analytical gradient via finite differences.
+	// fillNormals stores normalize(-ddx, -ddy, 1), so nx/nz = -ddx, ny/nz = -ddy.
+	static const int W = 32, H = 32;
+	static const double scale = 0.1;
+	static const double eps   = 1e-6;
+	static const double tol   = 1e-5;
+	OpenSimplex2S<double> n(12345);
+	std::vector<double> buf(3 * W * H);
+	n.fillNormals(buf.data(), W, H, scale, scale);
+	for (int row = 1; row < H - 1; ++row) {
+		for (int col = 1; col < W - 1; ++col) {
+			const double x = col * scale, y = row * scale;
+			const double* nm = &buf[3 * (row * W + col)];
+			const double nx = nm[0], nz = nm[2];
+			const double ny = nm[1];
+			const double ddx = -nx / nz;
+			const double ddy = -ny / nz;
+			const double fd_ddx = (n.noise(x + eps, y) - n.noise(x - eps, y)) / (2.0 * eps);
+			const double fd_ddy = (n.noise(x, y + eps) - n.noise(x, y - eps)) / (2.0 * eps);
+			assert(std::fabs(ddx - fd_ddx) < tol);
+			assert(std::fabs(ddy - fd_ddy) < tol);
+		}
+	}
+	std::printf("normals gradient: OK\n");
+}
+
+static void test_normals_unit_length()
+{
+	static const int W = 32, H = 32;
+	OpenSimplex2S<double> n(99999);
+	std::vector<double> buf(3 * W * H);
+	n.fillNormals(buf.data(), W, H, 0.1, 0.1);
+	for (int i = 0; i < W * H; ++i) {
+		const double nx = buf[3*i], ny = buf[3*i+1], nz = buf[3*i+2];
+		const double len = std::sqrt(nx*nx + ny*ny + nz*nz);
+		assert(std::fabs(len - 1.0) < 1e-12);
+		assert(nz > 0.0);
+	}
+	std::printf("normals unit length: OK\n");
+}
+
 static void test_golden_values()
 {
 	// Reference values based on the initial implementation to detect
@@ -380,6 +423,8 @@ int main(void)
 	test_range_4d_yup();
 	test_reproducibility_4d();
 	test_reproducibility_4d_yup();
+	test_normals_gradient();
+	test_normals_unit_length();
 	test_golden_values();
 	print_ascii_2d();
 	return 0;

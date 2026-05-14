@@ -913,6 +913,202 @@ static double noise4_base(long long seed, double xs, double ys, double zs, doubl
     return value;
 }
 
+// Computes the gradient (ddx, ddy) of the 2D noise at (xd, yd).
+// A2* Jacobian = I so input-space and displacement-space derivatives are identical;
+// no chain-rule correction is needed.
+static void noise2_withGrad(long long seed, double xd, double yd,
+                             double& ddx, double& ddy)
+{
+    static const double kSkew    =  0.366025403784439;
+    static const double kUnskew  = -0.211324865405187;
+    static const double kRsq     =  2.0 / 3.0;
+    static const double kD       =  1.0 + 2.0 * kUnskew;
+    static const double kA1coeff =  2.0 * kD * (1.0 / kUnskew + 2.0);
+    static const double kA1base  = -2.0 * kD * kD;
+
+    // Skew input to triangular lattice
+    const double s  = kSkew * (xd + yd);
+    const double xs = xd + s, ys = yd + s;
+
+    // Base cell
+    const int xsb = fastFloor(xs), ysb = fastFloor(ys);
+    const double xi = xs - xsb, yi = ys - ysb;
+
+    // Prime-multiplied coordinates for hashing
+    const long long xsbp = (long long)xsb * kPrimeX;
+    const long long ysbp = (long long)ysb * kPrimeY;
+
+    // Unskew to get displacements to vertex (0,0)
+    const double t   = (xi + yi) * kUnskew;
+    const double dx0 = xi + t, dy0 = yi + t;
+
+    const double a0 = kRsq - dx0 * dx0 - dy0 * dy0;
+    const double* g = grad2Table();
+
+    ddx = 0.0;
+    ddy = 0.0;
+
+    // ∂(a⁴·extrap)/∂dx = a²·(−8·dx·a·extrap + a²·gx); likewise for ddy
+
+    // Vertex (0,0): always contributes
+    {
+        long long hash  = seed ^ xsbp ^ ysbp;
+        hash *= kHashMultiplier;
+        hash ^= (long long)((unsigned long long)hash >> 58);
+        const int gi    = (int)hash & 254;
+        const double gx = g[gi], gy = g[gi + 1];
+        const double ex = gx * dx0 + gy * dy0;
+        const double a2 = a0 * a0;
+        ddx += a2 * (-8.0 * dx0 * a0 * ex + a2 * gx);
+        ddy += a2 * (-8.0 * dy0 * a0 * ex + a2 * gy);
+    }
+
+    // Vertex (1,1): always contributes; falloff derived algebraically
+    {
+        const double a  = kA1coeff * t + (kA1base + a0);
+        const double dx = dx0 - kD, dy = dy0 - kD;
+        long long hash  = seed ^ (xsbp + kPrimeX) ^ (ysbp + kPrimeY);
+        hash *= kHashMultiplier;
+        hash ^= (long long)((unsigned long long)hash >> 58);
+        const int gi    = (int)hash & 254;
+        const double gx = g[gi], gy = g[gi + 1];
+        const double ex = gx * dx + gy * dy;
+        const double a2 = a * a;
+        ddx += a2 * (-8.0 * dx * a * ex + a2 * gx);
+        ddy += a2 * (-8.0 * dy * a * ex + a2 * gy);
+    }
+
+    // Two conditional extra vertices selected based on which simplex half we're in
+    const double xmyi = xi - yi;
+    if (t < kUnskew) {
+        if (xi + xmyi > 1.0) {
+            const double dx = dx0 - (3.0 * kUnskew + 2.0);
+            const double dy = dy0 - (3.0 * kUnskew + 1.0);
+            const double a  = kRsq - dx * dx - dy * dy;
+            if (a > 0.0) {
+                long long hash  = seed ^ (xsbp + kPrimeX2) ^ (ysbp + kPrimeY);
+                hash *= kHashMultiplier;
+                hash ^= (long long)((unsigned long long)hash >> 58);
+                const int gi    = (int)hash & 254;
+                const double gx = g[gi], gy = g[gi + 1];
+                const double ex = gx * dx + gy * dy;
+                const double a2 = a * a;
+                ddx += a2 * (-8.0 * dx * a * ex + a2 * gx);
+                ddy += a2 * (-8.0 * dy * a * ex + a2 * gy);
+            }
+        } else {
+            const double dx = dx0 - kUnskew;
+            const double dy = dy0 - (kUnskew + 1.0);
+            const double a  = kRsq - dx * dx - dy * dy;
+            if (a > 0.0) {
+                long long hash  = seed ^ xsbp ^ (ysbp + kPrimeY);
+                hash *= kHashMultiplier;
+                hash ^= (long long)((unsigned long long)hash >> 58);
+                const int gi    = (int)hash & 254;
+                const double gx = g[gi], gy = g[gi + 1];
+                const double ex = gx * dx + gy * dy;
+                const double a2 = a * a;
+                ddx += a2 * (-8.0 * dx * a * ex + a2 * gx);
+                ddy += a2 * (-8.0 * dy * a * ex + a2 * gy);
+            }
+        }
+        if (yi - xmyi > 1.0) {
+            const double dx = dx0 - (3.0 * kUnskew + 1.0);
+            const double dy = dy0 - (3.0 * kUnskew + 2.0);
+            const double a  = kRsq - dx * dx - dy * dy;
+            if (a > 0.0) {
+                long long hash  = seed ^ (xsbp + kPrimeX) ^ (ysbp + kPrimeY2);
+                hash *= kHashMultiplier;
+                hash ^= (long long)((unsigned long long)hash >> 58);
+                const int gi    = (int)hash & 254;
+                const double gx = g[gi], gy = g[gi + 1];
+                const double ex = gx * dx + gy * dy;
+                const double a2 = a * a;
+                ddx += a2 * (-8.0 * dx * a * ex + a2 * gx);
+                ddy += a2 * (-8.0 * dy * a * ex + a2 * gy);
+            }
+        } else {
+            const double dx = dx0 - (kUnskew + 1.0);
+            const double dy = dy0 - kUnskew;
+            const double a  = kRsq - dx * dx - dy * dy;
+            if (a > 0.0) {
+                long long hash  = seed ^ (xsbp + kPrimeX) ^ ysbp;
+                hash *= kHashMultiplier;
+                hash ^= (long long)((unsigned long long)hash >> 58);
+                const int gi    = (int)hash & 254;
+                const double gx = g[gi], gy = g[gi + 1];
+                const double ex = gx * dx + gy * dy;
+                const double a2 = a * a;
+                ddx += a2 * (-8.0 * dx * a * ex + a2 * gx);
+                ddy += a2 * (-8.0 * dy * a * ex + a2 * gy);
+            }
+        }
+    } else {
+        if (xi + xmyi < 0.0) {
+            const double dx = dx0 + (1.0 + kUnskew);
+            const double dy = dy0 + kUnskew;
+            const double a  = kRsq - dx * dx - dy * dy;
+            if (a > 0.0) {
+                long long hash  = seed ^ (xsbp - kPrimeX) ^ ysbp;
+                hash *= kHashMultiplier;
+                hash ^= (long long)((unsigned long long)hash >> 58);
+                const int gi    = (int)hash & 254;
+                const double gx = g[gi], gy = g[gi + 1];
+                const double ex = gx * dx + gy * dy;
+                const double a2 = a * a;
+                ddx += a2 * (-8.0 * dx * a * ex + a2 * gx);
+                ddy += a2 * (-8.0 * dy * a * ex + a2 * gy);
+            }
+        } else {
+            const double dx = dx0 - (kUnskew + 1.0);
+            const double dy = dy0 - kUnskew;
+            const double a  = kRsq - dx * dx - dy * dy;
+            if (a > 0.0) {
+                long long hash  = seed ^ (xsbp + kPrimeX) ^ ysbp;
+                hash *= kHashMultiplier;
+                hash ^= (long long)((unsigned long long)hash >> 58);
+                const int gi    = (int)hash & 254;
+                const double gx = g[gi], gy = g[gi + 1];
+                const double ex = gx * dx + gy * dy;
+                const double a2 = a * a;
+                ddx += a2 * (-8.0 * dx * a * ex + a2 * gx);
+                ddy += a2 * (-8.0 * dy * a * ex + a2 * gy);
+            }
+        }
+        if (yi < xmyi) {
+            const double dx = dx0 + kUnskew;
+            const double dy = dy0 + (kUnskew + 1.0);
+            const double a  = kRsq - dx * dx - dy * dy;
+            if (a > 0.0) {
+                long long hash  = seed ^ xsbp ^ (ysbp - kPrimeY);
+                hash *= kHashMultiplier;
+                hash ^= (long long)((unsigned long long)hash >> 58);
+                const int gi    = (int)hash & 254;
+                const double gx = g[gi], gy = g[gi + 1];
+                const double ex = gx * dx + gy * dy;
+                const double a2 = a * a;
+                ddx += a2 * (-8.0 * dx * a * ex + a2 * gx);
+                ddy += a2 * (-8.0 * dy * a * ex + a2 * gy);
+            }
+        } else {
+            const double dx = dx0 - kUnskew;
+            const double dy = dy0 - (kUnskew + 1.0);
+            const double a  = kRsq - dx * dx - dy * dy;
+            if (a > 0.0) {
+                long long hash  = seed ^ xsbp ^ (ysbp + kPrimeY);
+                hash *= kHashMultiplier;
+                hash ^= (long long)((unsigned long long)hash >> 58);
+                const int gi    = (int)hash & 254;
+                const double gx = g[gi], gy = g[gi + 1];
+                const double ex = gx * dx + gy * dy;
+                const double a2 = a * a;
+                ddx += a2 * (-8.0 * dx * a * ex + a2 * gx);
+                ddy += a2 * (-8.0 * dy * a * ex + a2 * gy);
+            }
+        }
+    }
+}
+
 } // anonymous namespace
 
 template <typename T>
@@ -1101,6 +1297,27 @@ void OpenSimplex2S<T>::fill(T* data, std::size_t width, std::size_t height, std:
                                   static_cast<T>(layer) * scale_z);
                 data[(layer * height + row) * width + col] = v * T(0.5) + T(0.5);
             }
+        }
+    }
+}
+
+template <typename T>
+void OpenSimplex2S<T>::fillNormals(T* data, std::size_t width, std::size_t height,
+                                   T scale_x, T scale_y) const
+{
+    for (std::size_t row = 0; row < height; ++row) {
+        for (std::size_t col = 0; col < width; ++col) {
+            double ddx, ddy;
+            noise2_withGrad(seed_,
+                            static_cast<double>(col) * scale_x,
+                            static_cast<double>(row) * scale_y,
+                            ddx, ddy);
+            double nx = -ddx, ny = -ddy, nz = 1.0;
+            const double len = std::sqrt(nx * nx + ny * ny + nz * nz);
+            const std::size_t idx = row * width + col;
+            data[3 * idx + 0] = static_cast<T>(nx / len);
+            data[3 * idx + 1] = static_cast<T>(ny / len);
+            data[3 * idx + 2] = static_cast<T>(nz / len);
         }
     }
 }

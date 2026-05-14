@@ -152,6 +152,36 @@ struct OpenSimplex2S
 		T scale_z = T(1)
 	) const;
 
+	/**
+	 * @brief Fill a row-major width×height buffer with unit-length surface
+	 *        normals derived from the 2D noise gradient.
+	 *
+	 * Each normal is stored as three consecutive elements (nx, ny, nz) at
+	 * data[3*(row*width + col)]. The @p data buffer must hold at least
+	 * 3*width*height elements. The output is suitable for glTextureSubImage2D
+	 * using internal format GL_RGB32F / GL_RGB.
+	 *
+	 * Each normal is computed as normalize(−ddx, −ddy, 1), where (ddx, ddy)
+	 * is the gradient of the noise. This ensures that nz, the component
+	 * perpendicular to the noise plane, is always positive.
+	 *
+	 * Scaling parameters control feature frequency: larger values produce
+	 * higher-frequency (smaller-scale) features.
+	 *
+	 * @param data Output buffer
+	 * @param width Buffer width (x) in columns
+	 * @param height Buffer height (y) in rows
+	 * @param scale_x Column (x) sampling frequency
+	 * @param scale_y Row (y) sampling frequency
+	 */
+	void fillNormals(
+		T* data,
+		std::size_t width,
+		std::size_t height,
+		T scale_x = T(1),
+		T scale_y = T(1)
+	) const;
+
 private:
 	long long seed_;
 };
