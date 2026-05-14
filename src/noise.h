@@ -71,6 +71,31 @@ struct OpenSimplex2S
 	T noiseYUp(T x, T y, T z) const;
 
 	/**
+	 * @brief Compute 4D noise at (x, y, z, w) with XY and ZW as orthogonal
+	 *        isotropic planes.
+	 *
+	 * The distribution is roughly uniform. Values near the extremes are rare.
+	 * The canonical use is noise(x, y, sin(t), cos(t)) such that (z, w) traces
+	 * a circle seamlessly looping over t. Use for animated textures.
+	 *
+	 * @return Noise value in the range [-1, 1] at (x, y, z, w).
+	 */
+	T noise(T x, T y, T z, T w) const;
+
+	/**
+	 * @brief Compute 4D noise at (x, y, z, w) with XZ as the isotropic
+	 *        horizontal plane (Y-up) and W as an independent time dimension.
+	 *
+	 * The distribution is roughly uniform. Values near the extremes are rare.
+	 * The orientation matches noiseYUp(x, y, z) with Y as the "special"
+	 * (least-isotropic) axis. Use when Y is the vertical world axis for
+	 * time-animated terrain.
+	 *
+	 * @return Noise value in the range [-1, 1] at (x, y, z, w).
+	 */
+	T noiseYUp(T x, T y, T z, T w) const;
+
+	/**
 	 * @brief Fill a row-major width×height buffer with 2D noise remapped to
 	 *        [0, 1].
 	 *

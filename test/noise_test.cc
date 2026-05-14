@@ -149,6 +149,74 @@ static void test_fill_range()
 	std::printf("fill() range: OK\n");
 }
 
+static void test_range_4d()
+{
+	OpenSimplex2S<double> n(12345);
+	double vmin = 1.0, vmax = -1.0;
+	for (int w = 0; w < 4; ++w) {
+		for (int z = 0; z < 8; ++z) {
+			for (int y = 0; y < 8; ++y) {
+				for (int x = 0; x < 8; ++x) {
+					double v = n.noise(x * 0.1, y * 0.1, z * 0.1, w * 0.1);
+					if (v < vmin) {
+						vmin = v;
+					}
+					if (v > vmax) {
+						vmax = v;
+					}
+					assert(v >= -1.0 && v <= 1.0);
+				}
+			}
+		}
+	}
+	std::printf("4D range: [%.4f, %.4f]\n", vmin, vmax);
+}
+
+static void test_range_4d_yup()
+{
+	OpenSimplex2S<double> n(12345);
+	double vmin = 1.0, vmax = -1.0;
+	for (int w = 0; w < 4; ++w) {
+		for (int z = 0; z < 8; ++z) {
+			for (int y = 0; y < 8; ++y) {
+				for (int x = 0; x < 8; ++x) {
+					double v = n.noiseYUp(x * 0.1, y * 0.1, z * 0.1, w * 0.1);
+					if (v < vmin) {
+						vmin = v;
+					}
+					if (v > vmax) {
+						vmax = v;
+					}
+					assert(v >= -1.0 && v <= 1.0);
+				}
+			}
+		}
+	}
+	std::printf("4D Y-up range: [%.4f, %.4f]\n", vmin, vmax);
+}
+
+static void test_reproducibility_4d()
+{
+	OpenSimplex2S<double> a(99999), b(99999);
+	for (int i = 0; i < 20; ++i) {
+		double va = a.noise(i * 0.37, i * 0.53, i * 0.19, i * 0.11);
+		double vb = b.noise(i * 0.37, i * 0.53, i * 0.19, i * 0.11);
+		assert(va == vb);
+	}
+	std::printf("4D reproducibility: OK\n");
+}
+
+static void test_reproducibility_4d_yup()
+{
+	OpenSimplex2S<double> a(99999), b(99999);
+	for (int i = 0; i < 20; ++i) {
+		double va = a.noiseYUp(i * 0.37, i * 0.53, i * 0.19, i * 0.11);
+		double vb = b.noiseYUp(i * 0.37, i * 0.53, i * 0.19, i * 0.11);
+		assert(va == vb);
+	}
+	std::printf("4D Y-up reproducibility: OK\n");
+}
+
 static void test_golden_values()
 {
 	// Reference values based on the initial implementation to detect
@@ -219,12 +287,58 @@ static void test_golden_values()
 		-0.23969075804240284,
 		 0.091583630573677854,
 	};
+	static const double kExpected4D[20] = {
+		 1.4670823273711559e-56,
+		 0.27330863297505309,
+		-0.1247888424870798,
+		-0.068170140922254138,
+		-0.22877162010870356,
+		-0.16977632199324261,
+		 0.35569084629761261,
+		 0.0079685035618279904,
+		-0.71606323383249804,
+		-0.22624759994732929,
+		 0.013490129153863035,
+		 0.39839632680988324,
+		-0.020335440422609836,
+		 0.41517895653208048,
+		-0.27376347252267358,
+		-0.12402542513643491,
+		-0.10486329312373374,
+		-0.43334789907510096,
+		 0.053204955594503799,
+		-0.19000227245904527,
+	};
+	static const double kExpected4DYUp[20] = {
+		 1.4670823273711559e-56,
+		 0.2663686468163794,
+		 0.3177174966255934,
+		 0.60068400466844818,
+		 0.16813566259378601,
+		 0.17934514851579142,
+		 0.01885747941952623,
+		-0.075464615015133296,
+		 0.10971185906345537,
+		 0.12258924292931596,
+		-0.081817631704340171,
+		-0.11609734579630533,
+		 0.2306211812600642,
+		 0.054666441888276525,
+		 0.43276925109358655,
+		-0.5181076106015613,
+		 0.22916695109089857,
+		 0.36960190780554347,
+		 0.12659867239448339,
+		-0.0024900352290644881,
+	};
 
 	OpenSimplex2S<double> n(12345);
 	for (int i = 0; i < 20; ++i) {
 		assert(n.noise(i * 0.37, i * 0.53) == kExpected2D[i]);
 		assert(n.noise(i * 0.37, i * 0.53, i * 0.19) == kExpected3D[i]);
 		assert(n.noiseYUp(i * 0.37, i * 0.53, i * 0.19) == kExpected3DYUp[i]);
+		assert(n.noise(i * 0.37, i * 0.53, i * 0.19, i * 0.11) == kExpected4D[i]);
+		assert(n.noiseYUp(i * 0.37, i * 0.53, i * 0.19, i * 0.11) == kExpected4DYUp[i]);
 	}
 	std::printf("golden values: OK\n");
 }
@@ -262,6 +376,10 @@ int main(void)
 	test_float_instantiation();
 	test_continuity_2d();
 	test_fill_range();
+	test_range_4d();
+	test_range_4d_yup();
+	test_reproducibility_4d();
+	test_reproducibility_4d_yup();
 	test_golden_values();
 	print_ascii_2d();
 	return 0;
