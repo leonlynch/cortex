@@ -12,7 +12,6 @@
 #include <cstdio>
 #include <cmath>
 #include <cassert>
-#include <string>
 #include <vector>
 
 static void test_range_2d()
@@ -64,6 +63,38 @@ static void test_reproducibility()
 		assert(va == vb);
 	}
 	std::printf("reproducibility: OK\n");
+}
+
+static void test_range_3d_yup()
+{
+	OpenSimplex2S<double> n(12345);
+	double vmin = 1.0, vmax = -1.0;
+	for (int z = 0; z < 16; ++z) {
+		for (int y = 0; y < 16; ++y) {
+			for (int x = 0; x < 16; ++x) {
+				double v = n.noiseYUp(x * 0.1, y * 0.1, z * 0.1);
+				if (v < vmin) {
+					vmin = v;
+				}
+				if (v > vmax) {
+					vmax = v;
+				}
+				assert(v >= -1.0 && v <= 1.0);
+			}
+		}
+	}
+	std::printf("3D Y-up range: [%.4f, %.4f]\n", vmin, vmax);
+}
+
+static void test_reproducibility_yup()
+{
+	OpenSimplex2S<double> a(99999), b(99999);
+	for (int i = 0; i < 20; ++i) {
+		double va = a.noiseYUp(i * 0.37, i * 0.53, i * 0.19);
+		double vb = b.noiseYUp(i * 0.37, i * 0.53, i * 0.19);
+		assert(va == vb);
+	}
+	std::printf("Y-up reproducibility: OK\n");
 }
 
 static void test_float_instantiation()
@@ -166,11 +197,34 @@ static void test_golden_values()
 		 0.17602466641043996,
 		-0.55438765368935239,
 	};
+	static const double kExpected3DYUp[20] = {
+		 0,
+		 0.019923649947901214,
+		-0.49109337199328623,
+		-0.29284827032113536,
+		-0.036046422046814179,
+		 0.11104747016588055,
+		-0.53491555554976744,
+		-0.14439461080417848,
+		 0.28778543530876327,
+		 0.43701312332518633,
+		-0.51047551147881143,
+		-0.27791226315596451,
+		-0.21826134722635435,
+		 0.30769123621093331,
+		-0.65369105858210652,
+		 0.46707575425069925,
+		-0.084076568704406107,
+		 0.040012606472853506,
+		-0.23969075804240284,
+		 0.091583630573677854,
+	};
 
 	OpenSimplex2S<double> n(12345);
 	for (int i = 0; i < 20; ++i) {
 		assert(n.noise(i * 0.37, i * 0.53) == kExpected2D[i]);
 		assert(n.noise(i * 0.37, i * 0.53, i * 0.19) == kExpected3D[i]);
+		assert(n.noiseYUp(i * 0.37, i * 0.53, i * 0.19) == kExpected3DYUp[i]);
 	}
 	std::printf("golden values: OK\n");
 }
@@ -202,7 +256,9 @@ int main(void)
 {
 	test_range_2d();
 	test_range_3d();
+	test_range_3d_yup();
 	test_reproducibility();
+	test_reproducibility_yup();
 	test_float_instantiation();
 	test_continuity_2d();
 	test_fill_range();

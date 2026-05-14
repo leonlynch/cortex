@@ -16,9 +16,8 @@
  * @brief OpenSimplex2S (Smooth) gradient noise.
  *
  * C3-continuous gradient noise based on Kurt Spencer's OpenSimplex2S
- * algorithm. The 2D variant uses a triangular lattice; the 3D variant uses a
- * BCC lattice with an ImproveXY orientation that gives better visual isotropy
- * in the XY plane.
+ * algorithm. The 2D variant uses a triangular lattice; the 3D variants use a
+ * BCC lattice.
  *
  * Internal arithmetic is always double regardless of T. The final result is
  * cast to T. Use T = float where half the memory footprint matters more than
@@ -58,6 +57,18 @@ struct OpenSimplex2S
 	 * @return Noise value in the range [-1, 1] at (x, y, z).
 	 */
 	T noise(T x, T y, T z) const;
+
+	/**
+	 * @brief Compute 3D noise at (x, y, z) with better visual isotropy in the
+	 *        XZ plane.
+	 *
+	 * The distribution is roughly uniform. Values near the extremes are rare.
+	 * Y is the "special" (least-isotropic) axis. Use when Y is the vertical
+	 * world axis (a common convention).
+	 *
+	 * @return Noise value in the range [-1, 1] at (x, y, z).
+	 */
+	T noiseYUp(T x, T y, T z) const;
 
 	/**
 	 * @brief Fill a row-major width×height buffer with 2D noise remapped to

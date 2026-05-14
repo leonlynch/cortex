@@ -35,6 +35,11 @@ static const long long kPrimeZ2 = (long long)((unsigned long long)kPrimeZ * 2ULL
 static const double kNormalizer2D = 0.05481866495625118;
 static const double kNormalizer3D = 0.2781926117527186;
 
+// 3D geometry constants
+static const double kRsq3D      = 0.75;               // RSQUARED_3D = 3/4
+static const double kRotOrtho   = -0.211324865405187; // ROTATE3_ORTHOGONALIZER
+static const double kRoot3Over3 =  0.577350269189626; // ROOT3OVER3
+
 // 24 unit gradient vectors for 2D (8 at 45° + 16 at 15° intervals)
 static const double kGrad2Raw[48] = {
      0.38268343236509,   0.923879532511287,
@@ -170,6 +175,177 @@ inline int fastFloor(double x)
     return x < xi ? xi - 1 : xi;
 }
 
+// BCC lattice evaluation in pre-rotated space, shared by all 3D orientations.
+static double noise3_base(long long seed, double xr, double yr, double zr)
+{
+    // Base cell in rotated space
+    const int xrb = fastFloor(xr), yrb = fastFloor(yr), zrb = fastFloor(zr);
+    const double xi = xr - xrb, yi = yr - yrb, zi = zr - zrb;
+
+    // Prime-multiplied coordinates; second seed for body-centre BCC sublattice
+    const long long xrbp  = (long long)xrb * kPrimeX;
+    const long long yrbp  = (long long)yrb * kPrimeY;
+    const long long zrbp  = (long long)zrb * kPrimeZ;
+    const long long seed2 = seed ^ kSeedFlip3D;
+
+    // xNMask = -1 when xi > 0.5 (nearest corner has +1 offset), 0 otherwise
+    const int xNMask = (int)(-0.5 - xi);
+    const int yNMask = (int)(-0.5 - yi);
+    const int zNMask = (int)(-0.5 - zi);
+
+    // First vertex: nearest corner of BCC sublattice 1 (always contributes)
+    const double x0 = xi + xNMask, y0 = yi + yNMask, z0 = zi + zNMask;
+    const double a0 = kRsq3D - x0 * x0 - y0 * y0 - z0 * z0;
+    double value = (a0 * a0) * (a0 * a0) * grad3(seed,
+        xrbp + ((long long)xNMask & kPrimeX),
+        yrbp + ((long long)yNMask & kPrimeY),
+        zrbp + ((long long)zNMask & kPrimeZ),
+        x0, y0, z0);
+
+    // Second vertex: body centre of BCC sublattice 2 (always contributes)
+    const double x1 = xi - 0.5, y1 = yi - 0.5, z1 = zi - 0.5;
+    const double a1 = kRsq3D - x1 * x1 - y1 * y1 - z1 * z1;
+    value += (a1 * a1) * (a1 * a1) * grad3(seed2,
+        xrbp + kPrimeX, yrbp + kPrimeY, zrbp + kPrimeZ,
+        x1, y1, z1);
+
+    // Algebraic shortcuts: derive falloff at flipped vertices from a0 / a1
+    const double xAFlipMask0 = ((double)((xNMask | 1) << 1)) * x1;
+    const double yAFlipMask0 = ((double)((yNMask | 1) << 1)) * y1;
+    const double zAFlipMask0 = ((double)((zNMask | 1) << 1)) * z1;
+    const double xAFlipMask1 = ((double)(-2 - (xNMask << 2))) * x1 - 1.0;
+    const double yAFlipMask1 = ((double)(-2 - (yNMask << 2))) * y1 - 1.0;
+    const double zAFlipMask1 = ((double)(-2 - (zNMask << 2))) * z1 - 1.0;
+
+    // Each of the three pairs below evaluates up to 3 conditional vertices and
+    // may set a skip flag preventing a redundant evaluation in the final block.
+
+    bool skip5 = false;
+    {
+        const double a2 = xAFlipMask0 + a0;
+        if (a2 > 0) {
+            value += (a2 * a2) * (a2 * a2) * grad3(seed,
+                xrbp + (~(long long)xNMask & kPrimeX),
+                yrbp + ((long long)yNMask  & kPrimeY),
+                zrbp + ((long long)zNMask  & kPrimeZ),
+                x0 - (double)(xNMask | 1), y0, z0);
+        } else {
+            const double a3 = yAFlipMask0 + zAFlipMask0 + a0;
+            if (a3 > 0) {
+                value += (a3 * a3) * (a3 * a3) * grad3(seed,
+                    xrbp + ((long long)xNMask  & kPrimeX),
+                    yrbp + (~(long long)yNMask & kPrimeY),
+                    zrbp + (~(long long)zNMask & kPrimeZ),
+                    x0, y0 - (double)(yNMask | 1), z0 - (double)(zNMask | 1));
+            }
+            const double a4 = xAFlipMask1 + a1;
+            if (a4 > 0) {
+                value += (a4 * a4) * (a4 * a4) * grad3(seed2,
+                    xrbp + ((long long)xNMask & (kPrimeX2)),
+                    yrbp + kPrimeY,
+                    zrbp + kPrimeZ,
+                    (double)(xNMask | 1) + x1, y1, z1);
+                skip5 = true;
+            }
+        }
+    }
+
+    bool skip9 = false;
+    {
+        const double a6 = yAFlipMask0 + a0;
+        if (a6 > 0) {
+            value += (a6 * a6) * (a6 * a6) * grad3(seed,
+                xrbp + ((long long)xNMask  & kPrimeX),
+                yrbp + (~(long long)yNMask & kPrimeY),
+                zrbp + ((long long)zNMask  & kPrimeZ),
+                x0, y0 - (double)(yNMask | 1), z0);
+        } else {
+            const double a7 = xAFlipMask0 + zAFlipMask0 + a0;
+            if (a7 > 0) {
+                value += (a7 * a7) * (a7 * a7) * grad3(seed,
+                    xrbp + (~(long long)xNMask & kPrimeX),
+                    yrbp + ((long long)yNMask  & kPrimeY),
+                    zrbp + (~(long long)zNMask & kPrimeZ),
+                    x0 - (double)(xNMask | 1), y0, z0 - (double)(zNMask | 1));
+            }
+            const double a8 = yAFlipMask1 + a1;
+            if (a8 > 0) {
+                value += (a8 * a8) * (a8 * a8) * grad3(seed2,
+                    xrbp + kPrimeX,
+                    yrbp + ((long long)yNMask & (kPrimeY2)),
+                    zrbp + kPrimeZ,
+                    x1, (double)(yNMask | 1) + y1, z1);
+                skip9 = true;
+            }
+        }
+    }
+
+    bool skipD = false;
+    {
+        const double aA = zAFlipMask0 + a0;
+        if (aA > 0) {
+            value += (aA * aA) * (aA * aA) * grad3(seed,
+                xrbp + ((long long)xNMask  & kPrimeX),
+                yrbp + ((long long)yNMask  & kPrimeY),
+                zrbp + (~(long long)zNMask & kPrimeZ),
+                x0, y0, z0 - (double)(zNMask | 1));
+        } else {
+            const double aB = xAFlipMask0 + yAFlipMask0 + a0;
+            if (aB > 0) {
+                value += (aB * aB) * (aB * aB) * grad3(seed,
+                    xrbp + (~(long long)xNMask & kPrimeX),
+                    yrbp + (~(long long)yNMask & kPrimeY),
+                    zrbp + ((long long)zNMask  & kPrimeZ),
+                    x0 - (double)(xNMask | 1), y0 - (double)(yNMask | 1), z0);
+            }
+            const double aC = zAFlipMask1 + a1;
+            if (aC > 0) {
+                value += (aC * aC) * (aC * aC) * grad3(seed2,
+                    xrbp + kPrimeX,
+                    yrbp + kPrimeY,
+                    zrbp + ((long long)zNMask & (kPrimeZ2)),
+                    x1, y1, (double)(zNMask | 1) + z1);
+                skipD = true;
+            }
+        }
+    }
+
+    if (!skip5) {
+        const double a5 = yAFlipMask1 + zAFlipMask1 + a1;
+        if (a5 > 0) {
+            value += (a5 * a5) * (a5 * a5) * grad3(seed2,
+                xrbp + kPrimeX,
+                yrbp + ((long long)yNMask & (kPrimeY2)),
+                zrbp + ((long long)zNMask & (kPrimeZ2)),
+                x1, (double)(yNMask | 1) + y1, (double)(zNMask | 1) + z1);
+        }
+    }
+
+    if (!skip9) {
+        const double a9 = xAFlipMask1 + zAFlipMask1 + a1;
+        if (a9 > 0) {
+            value += (a9 * a9) * (a9 * a9) * grad3(seed2,
+                xrbp + ((long long)xNMask & (kPrimeX2)),
+                yrbp + kPrimeY,
+                zrbp + ((long long)zNMask & (kPrimeZ2)),
+                (double)(xNMask | 1) + x1, y1, (double)(zNMask | 1) + z1);
+        }
+    }
+
+    if (!skipD) {
+        const double aD = xAFlipMask1 + yAFlipMask1 + a1;
+        if (aD > 0) {
+            value += (aD * aD) * (aD * aD) * grad3(seed2,
+                xrbp + ((long long)xNMask & (kPrimeX2)),
+                yrbp + ((long long)yNMask & (kPrimeY2)),
+                zrbp + kPrimeZ,
+                (double)(xNMask | 1) + x1, (double)(yNMask | 1) + y1, z1);
+        }
+    }
+
+    return value;
+}
+
 } // anonymous namespace
 
 template <typename T>
@@ -282,186 +458,29 @@ T OpenSimplex2S<T>::noise(T x, T y) const
 template <typename T>
 T OpenSimplex2S<T>::noise(T x, T y, T z) const
 {
-    static const double kRotOrtho    = -0.211324865405187; // ROTATE3_ORTHOGONALIZER = UNSKEW_2D
-    static const double kRoot3Over3  =  0.577350269189626; // ROOT3OVER3
-    static const double kRsq         =  0.75;              // RSQUARED_3D
-
+    // ImproveXY: Z is the "special" axis, XY is the isotropic plane
     const double xd = x, yd = y, zd = z;
-
-    // Orthonormal rotation aligning the BCC lattice with the XY plane (ImproveXY variant)
     const double xy = xd + yd;
     const double s2 = xy * kRotOrtho;
     const double zz = zd * kRoot3Over3;
-    const double xr = xd + s2 + zz;
-    const double yr = yd + s2 + zz;
-    const double zr = xy * (-kRoot3Over3) + zz;
+    return static_cast<T>(noise3_base(seed_,
+        xd + s2 + zz,
+        yd + s2 + zz,
+        xy * (-kRoot3Over3) + zz));
+}
 
-    // Base cell in rotated space
-    const int xrb = fastFloor(xr), yrb = fastFloor(yr), zrb = fastFloor(zr);
-    const double xi = xr - xrb, yi = yr - yrb, zi = zr - zrb;
-
-    // Prime-multiplied coordinates; second seed for body-centre BCC sublattice
-    const long long xrbp  = (long long)xrb * kPrimeX;
-    const long long yrbp  = (long long)yrb * kPrimeY;
-    const long long zrbp  = (long long)zrb * kPrimeZ;
-    const long long seed2 = seed_ ^ kSeedFlip3D;
-
-    // xNMask = -1 when xi > 0.5 (nearest corner has +1 offset), 0 otherwise
-    const int xNMask = (int)(-0.5 - xi);
-    const int yNMask = (int)(-0.5 - yi);
-    const int zNMask = (int)(-0.5 - zi);
-
-    // First vertex: nearest corner of BCC sublattice 1 (always contributes)
-    const double x0 = xi + xNMask, y0 = yi + yNMask, z0 = zi + zNMask;
-    const double a0 = kRsq - x0 * x0 - y0 * y0 - z0 * z0;
-    double value = (a0 * a0) * (a0 * a0) * grad3(seed_,
-        xrbp + ((long long)xNMask & kPrimeX),
-        yrbp + ((long long)yNMask & kPrimeY),
-        zrbp + ((long long)zNMask & kPrimeZ),
-        x0, y0, z0);
-
-    // Second vertex: body centre of BCC sublattice 2 (always contributes)
-    const double x1 = xi - 0.5, y1 = yi - 0.5, z1 = zi - 0.5;
-    const double a1 = kRsq - x1 * x1 - y1 * y1 - z1 * z1;
-    value += (a1 * a1) * (a1 * a1) * grad3(seed2,
-        xrbp + kPrimeX, yrbp + kPrimeY, zrbp + kPrimeZ,
-        x1, y1, z1);
-
-    // Algebraic shortcuts: derive falloff at flipped vertices from a0 / a1
-    const double xAFlipMask0 = ((double)((xNMask | 1) << 1)) * x1;
-    const double yAFlipMask0 = ((double)((yNMask | 1) << 1)) * y1;
-    const double zAFlipMask0 = ((double)((zNMask | 1) << 1)) * z1;
-    const double xAFlipMask1 = ((double)(-2 - (xNMask << 2))) * x1 - 1.0;
-    const double yAFlipMask1 = ((double)(-2 - (yNMask << 2))) * y1 - 1.0;
-    const double zAFlipMask1 = ((double)(-2 - (zNMask << 2))) * z1 - 1.0;
-
-    // Each of the three pairs below evaluates up to 3 conditional vertices and
-    // may set a skip flag preventing a redundant evaluation in the final block.
-
-    bool skip5 = false;
-    {
-        const double a2 = xAFlipMask0 + a0;
-        if (a2 > 0) {
-            value += (a2 * a2) * (a2 * a2) * grad3(seed_,
-                xrbp + (~(long long)xNMask & kPrimeX),
-                yrbp + ((long long)yNMask  & kPrimeY),
-                zrbp + ((long long)zNMask  & kPrimeZ),
-                x0 - (double)(xNMask | 1), y0, z0);
-        } else {
-            const double a3 = yAFlipMask0 + zAFlipMask0 + a0;
-            if (a3 > 0) {
-                value += (a3 * a3) * (a3 * a3) * grad3(seed_,
-                    xrbp + ((long long)xNMask  & kPrimeX),
-                    yrbp + (~(long long)yNMask & kPrimeY),
-                    zrbp + (~(long long)zNMask & kPrimeZ),
-                    x0, y0 - (double)(yNMask | 1), z0 - (double)(zNMask | 1));
-            }
-            const double a4 = xAFlipMask1 + a1;
-            if (a4 > 0) {
-                value += (a4 * a4) * (a4 * a4) * grad3(seed2,
-                    xrbp + ((long long)xNMask & (kPrimeX2)),
-                    yrbp + kPrimeY,
-                    zrbp + kPrimeZ,
-                    (double)(xNMask | 1) + x1, y1, z1);
-                skip5 = true;
-            }
-        }
-    }
-
-    bool skip9 = false;
-    {
-        const double a6 = yAFlipMask0 + a0;
-        if (a6 > 0) {
-            value += (a6 * a6) * (a6 * a6) * grad3(seed_,
-                xrbp + ((long long)xNMask  & kPrimeX),
-                yrbp + (~(long long)yNMask & kPrimeY),
-                zrbp + ((long long)zNMask  & kPrimeZ),
-                x0, y0 - (double)(yNMask | 1), z0);
-        } else {
-            const double a7 = xAFlipMask0 + zAFlipMask0 + a0;
-            if (a7 > 0) {
-                value += (a7 * a7) * (a7 * a7) * grad3(seed_,
-                    xrbp + (~(long long)xNMask & kPrimeX),
-                    yrbp + ((long long)yNMask  & kPrimeY),
-                    zrbp + (~(long long)zNMask & kPrimeZ),
-                    x0 - (double)(xNMask | 1), y0, z0 - (double)(zNMask | 1));
-            }
-            const double a8 = yAFlipMask1 + a1;
-            if (a8 > 0) {
-                value += (a8 * a8) * (a8 * a8) * grad3(seed2,
-                    xrbp + kPrimeX,
-                    yrbp + ((long long)yNMask & (kPrimeY2)),
-                    zrbp + kPrimeZ,
-                    x1, (double)(yNMask | 1) + y1, z1);
-                skip9 = true;
-            }
-        }
-    }
-
-    bool skipD = false;
-    {
-        const double aA = zAFlipMask0 + a0;
-        if (aA > 0) {
-            value += (aA * aA) * (aA * aA) * grad3(seed_,
-                xrbp + ((long long)xNMask  & kPrimeX),
-                yrbp + ((long long)yNMask  & kPrimeY),
-                zrbp + (~(long long)zNMask & kPrimeZ),
-                x0, y0, z0 - (double)(zNMask | 1));
-        } else {
-            const double aB = xAFlipMask0 + yAFlipMask0 + a0;
-            if (aB > 0) {
-                value += (aB * aB) * (aB * aB) * grad3(seed_,
-                    xrbp + (~(long long)xNMask & kPrimeX),
-                    yrbp + (~(long long)yNMask & kPrimeY),
-                    zrbp + ((long long)zNMask  & kPrimeZ),
-                    x0 - (double)(xNMask | 1), y0 - (double)(yNMask | 1), z0);
-            }
-            const double aC = zAFlipMask1 + a1;
-            if (aC > 0) {
-                value += (aC * aC) * (aC * aC) * grad3(seed2,
-                    xrbp + kPrimeX,
-                    yrbp + kPrimeY,
-                    zrbp + ((long long)zNMask & (kPrimeZ2)),
-                    x1, y1, (double)(zNMask | 1) + z1);
-                skipD = true;
-            }
-        }
-    }
-
-    if (!skip5) {
-        const double a5 = yAFlipMask1 + zAFlipMask1 + a1;
-        if (a5 > 0) {
-            value += (a5 * a5) * (a5 * a5) * grad3(seed2,
-                xrbp + kPrimeX,
-                yrbp + ((long long)yNMask & (kPrimeY2)),
-                zrbp + ((long long)zNMask & (kPrimeZ2)),
-                x1, (double)(yNMask | 1) + y1, (double)(zNMask | 1) + z1);
-        }
-    }
-
-    if (!skip9) {
-        const double a9 = xAFlipMask1 + zAFlipMask1 + a1;
-        if (a9 > 0) {
-            value += (a9 * a9) * (a9 * a9) * grad3(seed2,
-                xrbp + ((long long)xNMask & (kPrimeX2)),
-                yrbp + kPrimeY,
-                zrbp + ((long long)zNMask & (kPrimeZ2)),
-                (double)(xNMask | 1) + x1, y1, (double)(zNMask | 1) + z1);
-        }
-    }
-
-    if (!skipD) {
-        const double aD = xAFlipMask1 + yAFlipMask1 + a1;
-        if (aD > 0) {
-            value += (aD * aD) * (aD * aD) * grad3(seed2,
-                xrbp + ((long long)xNMask & (kPrimeX2)),
-                yrbp + ((long long)yNMask & (kPrimeY2)),
-                zrbp + kPrimeZ,
-                (double)(xNMask | 1) + x1, (double)(yNMask | 1) + y1, z1);
-        }
-    }
-
-    return static_cast<T>(value);
+template <typename T>
+T OpenSimplex2S<T>::noiseYUp(T x, T y, T z) const
+{
+    // ImproveXZ: Y is the "special" axis, XZ is the isotropic plane
+    const double xd = x, yd = y, zd = z;
+    const double xz = xd + zd;
+    const double s2 = xz * kRotOrtho;
+    const double yy = yd * kRoot3Over3;
+    return static_cast<T>(noise3_base(seed_,
+        xd + s2 + yy,
+        xz * (-kRoot3Over3) + yy,
+        zd + s2 + yy));
 }
 
 template <typename T>
