@@ -57,7 +57,7 @@ void print_bezier_eval(const BezierCurve<T,n>& bc, std::size_t t_count)
 {
 	std::vector<vertex_t<T>> vertices;
 	std::vector<unsigned int> indices;
-	bc.tesselate(t_count, vertices, indices);
+	bc.tessellate(t_count, vertices, indices);
 
 	for (auto&& vertex : vertices)
 		std::cout << "p: " << vertex.position << "; n: " << vertex.normal << "\n";
@@ -73,7 +73,7 @@ void print_bezier_eval(const BezierSurface<T,n,m>& bs, std::size_t u_count, std:
 {
 	std::vector<vertex_t<T>> vertices;
 	std::vector<unsigned int> indices;
-	bs.tesselate(u_count, v_count, vertices, indices);
+	bs.tessellate(u_count, v_count, vertices, indices);
 
 	for (auto&& vertex : vertices)
 		std::cout << "p: " << vertex.position << "; n: " << vertex.normal << "\n";

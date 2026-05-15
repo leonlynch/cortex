@@ -101,7 +101,7 @@ T BezierCurve<T,n>::normal(double t) const
 
 template <typename T, std::size_t n>
 template <typename VertexType, typename IndexType>
-void BezierCurve<T,n>::tesselate(std::size_t t_count, std::vector<VertexType>& vertices, std::vector<IndexType>& indices) const
+void BezierCurve<T,n>::tessellate(std::size_t t_count, std::vector<VertexType>& vertices, std::vector<IndexType>& indices) const
 {
 	vertices.reserve(vertices.size() + t_count);
 	indices.reserve(indices.size() + ((t_count - 1) * 2));
@@ -175,7 +175,7 @@ T BezierSurface<T,n,m>::normal(double u, double v) const
 
 template <typename T, std::size_t n, std::size_t m>
 template <typename VertexType, typename IndexType>
-void BezierSurface<T,n,m>::tesselate(std::size_t u_count, std::size_t v_count, std::vector<VertexType>& vertices, std::vector<IndexType>& indices) const
+void BezierSurface<T,n,m>::tessellate(std::size_t u_count, std::size_t v_count, std::vector<VertexType>& vertices, std::vector<IndexType>& indices) const
 {
 	vertices.reserve(vertices.size() + (u_count * v_count));
 	indices.reserve(indices.size() + ((u_count - 1) * (v_count - 1) * 3 * 2));

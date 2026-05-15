@@ -1,7 +1,7 @@
 /**
  * @file bezier.h
  *
- * Copyright (c) 2013 Leon Lynch
+ * Copyright (c) 2013, 2026 Leon Lynch
  *
  * This file is licensed under the terms of the MIT license.
  * See LICENSE file.
@@ -29,7 +29,7 @@ struct BezierCurve
 	T normal(double t) const;
 
 	template<typename VertexType, typename IndexType = unsigned int>
-	void tesselate(std::size_t t_count, std::vector<VertexType>& vertices, std::vector<IndexType>& indices) const;
+	void tessellate(std::size_t t_count, std::vector<VertexType>& vertices, std::vector<IndexType>& indices) const;
 };
 
 template <typename T, std::size_t n, std::size_t m>
@@ -46,7 +46,7 @@ struct BezierSurface
 	T normal(double u, double v) const;
 
 	template<typename VertexType, typename IndexType = unsigned int>
-	void tesselate(std::size_t u_count, std::size_t v_count, std::vector<VertexType>& vertices, std::vector<IndexType>& indices) const;
+	void tessellate(std::size_t u_count, std::size_t v_count, std::vector<VertexType>& vertices, std::vector<IndexType>& indices) const;
 };
 
 template <typename T, std::size_t n>

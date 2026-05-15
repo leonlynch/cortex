@@ -1,7 +1,7 @@
 /**
  * @file shape.tcc
  *
- * Copyright (c) 2020 Leon Lynch
+ * Copyright (c) 2020, 2026 Leon Lynch
  *
  * This file is licensed under the terms of the MIT license.
  * See LICENSE file.
@@ -14,7 +14,7 @@
 
 template <typename T>
 template <typename VertexType, typename IndexType>
-void Cube<T>::tesselate(std::vector<VertexType>& vertices, std::vector<IndexType>& indices) const
+void Cube<T>::tessellate(std::vector<VertexType>& vertices, std::vector<IndexType>& indices) const
 {
 	vertices.assign({
 		{ {  1.0f,  1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f } },
@@ -71,7 +71,7 @@ void Cube<T>::tesselate(std::vector<VertexType>& vertices, std::vector<IndexType
 
 template <typename T>
 template <typename VertexType, typename IndexType>
-void Octahedron<T>::tesselate(std::vector<VertexType>& vertices, std::vector<IndexType>& indices) const
+void Octahedron<T>::tessellate(std::vector<VertexType>& vertices, std::vector<IndexType>& indices) const
 {
 	vertices.assign({
 		{ {  1.0f,  0.0f,  0.0f }, {  1.0f,  1.0f,  1.0f } },

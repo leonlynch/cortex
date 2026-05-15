@@ -1,7 +1,7 @@
 /**
  * @file sphere.tcc
  *
- * Copyright (c) 2020 Leon Lynch
+ * Copyright (c) 2020, 2026 Leon Lynch
  *
  * This file is licensed under the terms of the MIT license.
  * See LICENSE file.
@@ -60,7 +60,7 @@ void subdivide(std::size_t divisions, std::vector<T>& vertices, std::vector<Inde
 
 template <typename T>
 template <typename VertexType, typename IndexType>
-void Sphere<T>::tesselate(std::size_t divisions, std::vector<VertexType>& vertices, std::vector<IndexType>& indices) const
+void Sphere<T>::tessellate(std::size_t divisions, std::vector<VertexType>& vertices, std::vector<IndexType>& indices) const
 {
 	T v[] = { 
 		{ 1, 0, 0 },

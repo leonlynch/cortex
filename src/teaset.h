@@ -1,7 +1,7 @@
 /**
  * @file teaset.h
  *
- * Copyright (c) 2013 Leon Lynch
+ * Copyright (c) 2013, 2026 Leon Lynch
  *
  * This file is licensed under the terms of the MIT license.
  * See LICENSE file.
@@ -30,7 +30,7 @@ protected:
 
 public:
 	template<typename VertexType, typename IndexType = unsigned int>
-	void tesselate(unsigned int u_count, unsigned int v_count, std::vector<VertexType>& vertices, std::vector<IndexType>& indices) const;
+	void tessellate(unsigned int u_count, unsigned int v_count, std::vector<VertexType>& vertices, std::vector<IndexType>& indices) const;
 };
 
 class Teapot : public Teaset

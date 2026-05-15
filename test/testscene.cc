@@ -494,37 +494,37 @@ int scene_load_resources(void)
 	printf("%s(); fragdata='%s'; location=%d\n", __FUNCTION__, "color", fragdata_location);
 
 	// Load cube mesh
-	cube.tesselate(cube_vertices, cube_indices);
+	cube.tessellate(cube_vertices, cube_indices);
 	scene_load_mesh(cube_vertices, cube_indices, &cube_mesh);
 	scene_load_mesh_normals(cube_vertices, &cube_mesh.normals);
 
 	// Load octahedron mesh
-	octahedron.tesselate(octahedron_vertices, octahedron_indices);
+	octahedron.tessellate(octahedron_vertices, octahedron_indices);
 	scene_load_mesh(octahedron_vertices, octahedron_indices, &octahedron_mesh);
 	scene_load_mesh_normals(octahedron_vertices, &octahedron_mesh.normals);
 
 	// Load bezier surface mesh
-	bezier_surface.tesselate(16, 16, bezier_surface_vertices, bezier_surface_indices);
+	bezier_surface.tessellate(16, 16, bezier_surface_vertices, bezier_surface_indices);
 	scene_load_mesh(bezier_surface_vertices, bezier_surface_indices, &bezier_surface_mesh);
 	scene_load_mesh_normals(bezier_surface_vertices, &bezier_surface_mesh.normals);
 
 	// Load teapot mesh
-	teapot.tesselate(12, 12, teapot_vertices, teapot_indices);
+	teapot.tessellate(12, 12, teapot_vertices, teapot_indices);
 	scene_load_mesh(teapot_vertices, teapot_indices, &teapot_mesh);
 	scene_load_mesh_normals(teapot_vertices, &teapot_mesh.normals);
 
 	// Load teacup mesh
-	teacup.tesselate(8, 8, teacup_vertices, teacup_indices);
+	teacup.tessellate(8, 8, teacup_vertices, teacup_indices);
 	scene_load_mesh(teacup_vertices, teacup_indices, &teacup_mesh);
 	scene_load_mesh_normals(teacup_vertices, &teacup_mesh.normals);
 
 	// Load teaspoon mesh
-	teaspoon.tesselate(8, 8, teaspoon_vertices, teaspoon_indices);
+	teaspoon.tessellate(8, 8, teaspoon_vertices, teaspoon_indices);
 	scene_load_mesh(teaspoon_vertices, teaspoon_indices, &teaspoon_mesh);
 	scene_load_mesh_normals(teaspoon_vertices, &teaspoon_mesh.normals);
 
 	// Load sphere mesh
-	sphere.tesselate(3, sphere_vertices, sphere_indices);
+	sphere.tessellate(3, sphere_vertices, sphere_indices);
 	scene_load_mesh(sphere_vertices, sphere_indices, &sphere_mesh);
 	scene_load_mesh_normals(sphere_vertices, &sphere_mesh.normals);
 
@@ -706,31 +706,31 @@ void scene_set_complexity(int subdivision_delta)
 
 	// Update bezier surface mesh
 	sub_count = glm::clamp(16 + subdivision_delta, 2, 24);
-	bezier_surface.tesselate(sub_count, sub_count, bezier_surface_vertices, bezier_surface_indices);
+	bezier_surface.tessellate(sub_count, sub_count, bezier_surface_vertices, bezier_surface_indices);
 	scene_update_mesh(bezier_surface_vertices, bezier_surface_indices, &bezier_surface_mesh);
 	scene_update_mesh_normals(bezier_surface_vertices, &bezier_surface_mesh.normals);
 
 	// Update teapot mesh
 	sub_count = glm::clamp(12 + subdivision_delta, 2, 24);
-	teapot.tesselate(sub_count, sub_count, teapot_vertices, teapot_indices);
+	teapot.tessellate(sub_count, sub_count, teapot_vertices, teapot_indices);
 	scene_update_mesh(teapot_vertices, teapot_indices, &teapot_mesh);
 	scene_update_mesh_normals(teapot_vertices, &teapot_mesh.normals);
 
 	// Update teacup mesh
 	sub_count = glm::clamp(8 + subdivision_delta, 2, 16);
-	teacup.tesselate(sub_count, sub_count, teacup_vertices, teacup_indices);
+	teacup.tessellate(sub_count, sub_count, teacup_vertices, teacup_indices);
 	scene_update_mesh(teacup_vertices, teacup_indices, &teacup_mesh);
 	scene_update_mesh_normals(teacup_vertices, &teacup_mesh.normals);
 
 	// Update teaspoon mesh
 	sub_count = glm::clamp(8 + subdivision_delta, 2, 16);
-	teaspoon.tesselate(sub_count, sub_count, teaspoon_vertices, teaspoon_indices);
+	teaspoon.tessellate(sub_count, sub_count, teaspoon_vertices, teaspoon_indices);
 	scene_update_mesh(teaspoon_vertices, teaspoon_indices, &teaspoon_mesh);
 	scene_update_mesh_normals(teaspoon_vertices, &teaspoon_mesh.normals);
 
 	// Update sphere mesh
 	sub_count = glm::clamp(3 + subdivision_delta, 0, 4);
-	sphere.tesselate(sub_count, sphere_vertices, sphere_indices);
+	sphere.tessellate(sub_count, sphere_vertices, sphere_indices);
 	scene_update_mesh(sphere_vertices, sphere_indices, &sphere_mesh);
 	scene_update_mesh_normals(sphere_vertices, &sphere_mesh.normals);
 }
