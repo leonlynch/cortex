@@ -1,7 +1,7 @@
 /**
  * @file bezier.tcc
  *
- * Copyright (c) 2013 Leon Lynch
+ * Copyright (c) 2013, 2026 Leon Lynch
  *
  * This file is licensed under the terms of the MIT license.
  * See LICENSE file.
@@ -192,12 +192,12 @@ void BezierSurface<T,n,m>::tesselate(std::size_t u_count, std::size_t v_count, s
 			vertices.push_back(std::move(vertex));
 
 			if (i < u_count - 1 && j < v_count - 1) {
-				indices.push_back(offset + (i * u_count + j));
-				indices.push_back(offset + ((i + 1) * u_count + j));
-				indices.push_back(offset + (i * u_count + j + 1));
-				indices.push_back(offset + (i * u_count + j + 1));
-				indices.push_back(offset + ((i + 1) * u_count + j));
-				indices.push_back(offset + ((i + 1) * u_count + j + 1));
+				indices.push_back(offset + (i * v_count + j));
+				indices.push_back(offset + ((i + 1) * v_count + j));
+				indices.push_back(offset + (i * v_count + j + 1));
+				indices.push_back(offset + (i * v_count + j + 1));
+				indices.push_back(offset + ((i + 1) * v_count + j));
+				indices.push_back(offset + ((i + 1) * v_count + j + 1));
 			}
 		}
 	}
@@ -250,7 +250,7 @@ std::ostream& operator<< (std::ostream& os, const BezierSurface<T,n,m>& bs)
 		if (i)
 			os << "\n";
 
-		for (std::size_t j = 0; j < n + 1; ++j) {
+		for (std::size_t j = 0; j < m + 1; ++j) {
 			if (j)
 				os << ", ";
 			::operator<< <T, n>(os, bs.k[i][j]);
