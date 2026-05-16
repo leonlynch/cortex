@@ -31,18 +31,18 @@ struct Sphere
 	 * @brief Tessellate the sphere into vertex and index buffers suitable for
 	 *        GL_TRIANGLES rendering.
 	 *
-	 * Builds a unit sphere by subdividing each octahedron face @p divisions
-	 * times. Each level multiplies the triangle count by 4; divisions = 0
-	 * produces an octahedron (8 triangles). @p vertices and @p indices must
-	 * be empty on entry.
+	 * Subdivides each octahedron face @p divisions times, appending vertices
+	 * to @p vertices and GL_TRIANGLES indices to @p indices. Each level
+	 * multiplies the triangle count by 4; @p divisions = 0 produces an
+	 * octahedron (8 triangles).
 	 *
 	 * @tparam VertexType 3D Vertex type providing .position and .normal
 	 *         assignable from T.
 	 * @tparam IndexType Integer type suitable for array indices
 	 *
 	 * @param divisions Number of subdivision levels. Must be >= 0.
-	 * @param vertices Vertex buffer output. Must be empty on entry.
-	 * @param indices Index buffer output. Must be empty on entry.
+	 * @param vertices Vertex buffer output. New vertices are appended.
+	 * @param indices Index buffer output. New indices are appended.
 	 */
 	template<typename VertexType, typename IndexType = unsigned int>
 	void tessellate(std::size_t divisions, std::vector<VertexType>& vertices, std::vector<IndexType>& indices) const;

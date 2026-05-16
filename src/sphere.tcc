@@ -14,6 +14,8 @@
 
 #include <glm/glm.hpp>
 
+namespace {
+
 template <typename T, typename IndexType>
 void subdivide(std::size_t divisions, std::vector<T>& vertices, std::vector<IndexType>& indices, const IndexType* idx)
 {
@@ -58,21 +60,26 @@ void subdivide(std::size_t divisions, std::vector<T>& vertices, std::vector<Inde
 	}
 }
 
+} // Anonymous namespace
+
 template <typename T>
 template <typename VertexType, typename IndexType>
 void Sphere<T>::tessellate(std::size_t divisions, std::vector<VertexType>& vertices, std::vector<IndexType>& indices) const
 {
-	T v[] = { 
+	std::size_t offset = vertices.size();
+
+	T v[] = {
 		{ 1, 0, 0 },
 		{ 0, 1, 0 },
 		{ 0, 0, 1 },
 	};
-	IndexType idx[] = { 0, 1, 2 };
-	
+	IndexType v_idx[] = { 0, 1, 2 };
+
 	// Create initial surface; 8th of octahedron
 	std::vector<T> vectors;
+	std::vector<IndexType> vector_indices;
 	vectors.insert(vectors.end(), std::begin(v), std::end(v));
-	subdivide(divisions, vectors, indices, idx);
+	subdivide(divisions, vectors, vector_indices, v_idx);
 
 	// Create quarter of octahedron
 	{
@@ -81,15 +88,15 @@ void Sphere<T>::tessellate(std::size_t divisions, std::vector<VertexType>& verti
 		transform[0][0] = 1.0f;
 		transform[1][2] = 1.0f;
 		transform[2][1] = -1.0f;
-		
+
 		// Append rotated vectors
 		std::size_t vector_count = vectors.size();
 		for (std::size_t i = 0; i < vector_count; ++i) {
 			vectors.push_back(transform * vectors[i]);
 		}
-		std::size_t index_count = indices.size();
+		std::size_t index_count = vector_indices.size();
 		for (std::size_t i = 0; i < index_count; ++i) {
-			indices.push_back(indices[i] + vector_count);
+			vector_indices.push_back(vector_indices[i] + vector_count);
 		}
 	}
 
@@ -100,18 +107,18 @@ void Sphere<T>::tessellate(std::size_t divisions, std::vector<VertexType>& verti
 		transform[0][0] = 1.0f;
 		transform[1][1] = -1.0f;
 		transform[2][2] = -1.0f;
-		
+
 		// Append rotated vectors
 		std::size_t vector_count = vectors.size();
 		for (std::size_t i = 0; i < vector_count; ++i) {
 			vectors.push_back(transform * vectors[i]);
 		}
-		std::size_t index_count = indices.size();
+		std::size_t index_count = vector_indices.size();
 		for (std::size_t i = 0; i < index_count; ++i) {
-			indices.push_back(indices[i] + vector_count);
+			vector_indices.push_back(vector_indices[i] + vector_count);
 		}
 	}
-	
+
 	// Create full octahedron
 	{
 		// Build transformation matrix rotation around z-axis
@@ -119,25 +126,29 @@ void Sphere<T>::tessellate(std::size_t divisions, std::vector<VertexType>& verti
 		transform[0][0] = -1.0f;
 		transform[1][1] = -1.0f;
 		transform[2][2] = 1.0f;
-		
+
 		// Append rotated vectors
 		std::size_t vector_count = vectors.size();
 		for (std::size_t i = 0; i < vector_count; ++i) {
 			vectors.push_back(transform * vectors[i]);
 		}
-		std::size_t index_count = indices.size();
+		std::size_t index_count = vector_indices.size();
 		for (std::size_t i = 0; i < index_count; ++i) {
-			indices.push_back(indices[i] + vector_count);
+			vector_indices.push_back(vector_indices[i] + vector_count);
 		}
 	}
 
-	vertices.reserve(vectors.size());
+	vertices.reserve(offset + vectors.size());
 	for (auto&& v : vectors) {
-
 		VertexType vertex;
 		vertex.position = v;
 		vertex.normal = glm::normalize(v);
 		vertices.push_back(std::move(vertex));
+	}
+
+	indices.reserve(indices.size() + vector_indices.size());
+	for (auto idx : vector_indices) {
+		indices.push_back(offset + idx);
 	}
 }
 
