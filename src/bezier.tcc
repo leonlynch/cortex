@@ -16,7 +16,7 @@
 #ifndef CORTEX_BEZIER_TCC
 #define CORTEX_BEZIER_TCC
 
-// compile-time factorial template; terminate at x=0
+// Compile-time factorial template; terminate at x=0
 template<unsigned int x>
 struct Factorial
 {
@@ -29,37 +29,38 @@ struct Factorial<0>
 	static const unsigned int value = 1;
 };
 
-// binomial coefficient of degree n for term k
+// Binomial coefficient of degree n for term k
 template<unsigned int n, unsigned int k>
 struct BinomialCoefficient
 {
 	static const unsigned int value = Factorial<n>::value / (Factorial<k>::value * Factorial<n - k>::value);
 };
 
-// bernstein polynomial v of degree n for value x
+// Bernstein polynomial v of degree n for value x
 template<unsigned int n, unsigned int v>
 struct BernsteinPolynomial
 {
 	static double value(double x)
 	{
-		// see http://en.wikipedia.org/wiki/Bernstein_polynomial#Definition
+		// See http://en.wikipedia.org/wiki/Bernstein_polynomial#Definition
 		return BinomialCoefficient<n, v>::value * std::pow(x, v) * std::pow(1 - x, n - v);
 	}
 };
 
-// bezier curve of degree n; terminate at i=0
+// Bezier curve of degree n; terminate at i=0
 template<typename T, std::size_t n, std::size_t i = n>
 struct Bezier
 {
 	static T position(const T* k, double t)
 	{
-		// see http://en.wikipedia.org/wiki/B%C3%A9zier_curve#General_definition
+		// See http://en.wikipedia.org/wiki/B%C3%A9zier_curve#General_definition
 		return k[i] * static_cast<typename T::value_type>(BernsteinPolynomial<n, i>::value(t)) + Bezier<T, n, i - 1>::position(k, t);
 	}
 
 	static T tangent(const T* k, double t)
 	{
-		// bezier curve of degree n with control points k has derivative which is bezier curve of degree n-1 with control points d[i] = n(k[i + 1] - k[i])
+		// Bezier curve of degree n with control points k has derivative which is
+		// bezier curve of degree n-1 with control points d[i] = n(k[i + 1] - k[i])
 		T d[n];
 		for (std::size_t ni = 0; ni < n; ++ni)
 			d[ni] = static_cast<typename T::value_type>(n) * (k[ni + 1] - k[ni]);
@@ -95,7 +96,7 @@ T BezierCurve<T,n>::normal(double t) const
 {
 	T dt = Bezier<T,n>::tangent(k, t);
 
-	// rotate 90deg counter-clockwise
+	// Rotate 90deg counter-clockwise
 	return T(-dt[1], dt[0]);
 }
 
@@ -135,7 +136,7 @@ T BezierSurface<T,n,m>::position(double u, double v) const
 {
 	ControlPoint kn[n + 1];
 
-	// evaluate curves in direction m/v to obtain intermediate control points in direction n/u
+	// Evaluate curves in direction m/v to obtain intermediate control points in direction n/u
 	for (std::size_t i = 0; i < n + 1; ++i)
 		kn[i] = Bezier<T,m>::position(k[i], v);
 
@@ -148,13 +149,13 @@ T BezierSurface<T,n,m>::normal(double u, double v) const
 	ControlPoint kn[n + 1];
 	ControlPoint km[m + 1];
 
-	// evaluate curves in direction m/v to obtain intermediate control points in direction n/u
+	// Evaluate curves in direction m/v to obtain intermediate control points in direction n/u
 	for (std::size_t i = 0; i < n + 1; ++i)
 		kn[i] = Bezier<T,m>::position(k[i], v);
 
-	// evaluate curves in direction n/u to obtain intermediate control points in direction m/v
+	// Evaluate curves in direction n/u to obtain intermediate control points in direction m/v
 	for (std::size_t i = 0; i < m + 1; ++i) {
-		// transpose control points
+		// Transpose control points
 		ControlPoint kmn[n + 1];
 		for (std::size_t j = 0; j < n + 1; ++j)
 			kmn[j] = k[j][i];
@@ -165,7 +166,7 @@ T BezierSurface<T,n,m>::normal(double u, double v) const
 	T du = Bezier<T, n>::tangent(kn, u);
 	T dv = Bezier<T, m>::tangent(km, v);
 
-	// cross product
+	// Cross product
 	return T(
 		du[1] * dv[2] - du[2] * dv[1],
 		du[2] * dv[0] - du[0] * dv[2],
