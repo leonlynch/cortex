@@ -12,11 +12,15 @@
 #ifndef CORTEX_SHAPE_TCC
 #define CORTEX_SHAPE_TCC
 
-template <typename T>
 template <typename VertexType, typename IndexType>
-void Cube<T>::tessellate(std::vector<VertexType>& vertices, std::vector<IndexType>& indices) const
+void Cube::tessellate(std::vector<VertexType>& vertices, std::vector<IndexType>& indices) const
 {
-	vertices.assign({
+	vertices.reserve(vertices.size() + 24);
+	indices.reserve(indices.size() + 36);
+
+	std::size_t offset = vertices.size();
+
+	vertices.insert(vertices.end(), {
 		{ {  1.0f,  1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f } },
 		{ { -1.0f,  1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f } },
 		{ { -1.0f, -1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f } },
@@ -48,7 +52,7 @@ void Cube<T>::tessellate(std::vector<VertexType>& vertices, std::vector<IndexTyp
 		{ {  1.0f, -1.0f, -1.0f }, {  0.0f, -1.0f,  0.0f } },
 	});
 
-	indices.assign({
+	static const unsigned int raw_indices[] = {
 		0, 1, 3,
 		2, 3, 1,
 
@@ -66,14 +70,21 @@ void Cube<T>::tessellate(std::vector<VertexType>& vertices, std::vector<IndexTyp
 
 		20, 21, 23,
 		22, 23, 21,
-	});
+	};
+	for (auto idx : raw_indices) {
+		indices.push_back(offset + idx);
+	}
 }
 
-template <typename T>
 template <typename VertexType, typename IndexType>
-void Octahedron<T>::tessellate(std::vector<VertexType>& vertices, std::vector<IndexType>& indices) const
+void Octahedron::tessellate(std::vector<VertexType>& vertices, std::vector<IndexType>& indices) const
 {
-	vertices.assign({
+	vertices.reserve(vertices.size() + 24);
+	indices.reserve(indices.size() + 24);
+
+	std::size_t offset = vertices.size();
+
+	vertices.insert(vertices.end(), {
 		{ {  1.0f,  0.0f,  0.0f }, {  1.0f,  1.0f,  1.0f } },
 		{ {  0.0f,  1.0f,  0.0f }, {  1.0f,  1.0f,  1.0f } },
 		{ {  0.0f,  0.0f,  1.0f }, {  1.0f,  1.0f,  1.0f } },
@@ -107,7 +118,7 @@ void Octahedron<T>::tessellate(std::vector<VertexType>& vertices, std::vector<In
 		{ {  0.0f, -1.0f,  0.0f }, { -1.0f, -1.0f, -1.0f } },
 	});
 
-	indices.assign({
+	static const unsigned int raw_indices[] = {
 		0, 1, 2,
 		3, 4, 5,
 		6, 7, 8,
@@ -116,7 +127,10 @@ void Octahedron<T>::tessellate(std::vector<VertexType>& vertices, std::vector<In
 		15, 16, 17,
 		18, 19, 20,
 		21, 22, 23,
-	});
+	};
+	for (auto idx : raw_indices) {
+		indices.push_back(offset + idx);
+	}
 }
 
 #endif

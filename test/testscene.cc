@@ -91,13 +91,13 @@ struct mesh_t {
 };
 
 // Cube mesh
-static Cube<glm::vec3> cube;
+static Cube cube;
 static std::vector<vertex_t> cube_vertices;
 static std::vector<unsigned int> cube_indices;
 static mesh_t cube_mesh;
 
 // Octahedron mesh
-static Octahedron<glm::vec3> octahedron;
+static Octahedron octahedron;
 static std::vector<vertex_t> octahedron_vertices;
 static std::vector<unsigned int> octahedron_indices;
 static mesh_t octahedron_mesh;

@@ -10,8 +10,6 @@
 #ifndef CORTEX_SHAPE_H
 #define CORTEX_SHAPE_H
 
-#include <cstddef>
-
 #include <vector>
 
 /**
@@ -19,53 +17,48 @@
  *
  * Provides vertex and index data suitable for GL_TRIANGLES rendering. Consists
  * of 24 vertices with per-face flat normals (4 per face) and 12 triangles.
- *
- * @tparam T 3D vector type (e.g. glm::vec3)
  */
-template <typename T>
 struct Cube
 {
 	/**
 	 * @brief Tessellate the cube into vertex and index buffers suitable for
 	 *        GL_TRIANGLES rendering.
 	 *
-	 * Populates @p vertices and @p indices, replacing any existing content.
+	 * Appends 24 vertices to @p vertices and appends GL_TRIANGLES indices to
+	 * @p indices.
 	 *
 	 * @tparam VertexType 3D Vertex type providing .position and .normal each
-	 *                    constructible from three floats.
+	 *                    constructible from three floats (e.g. glm::vec3)
 	 * @tparam IndexType Integer type suitable for array indices
 	 *
-	 * @param vertices Vertex buffer output. Existing content is replaced.
-	 * @param indices Index buffer output. Existing content is replaced.
+	 * @param vertices Vertex buffer output. New vertices are appended.
+	 * @param indices Index buffer output. New indices are appended.
 	 */
 	template<typename VertexType, typename IndexType = unsigned int>
 	void tessellate(std::vector<VertexType>& vertices, std::vector<IndexType>& indices) const;
 };
-
 
 /**
  * @brief Octahedron template implementation
  *
  * Provides vertex and index data suitable for GL_TRIANGLES rendering. Consists
  * of 24 vertices with per-face flat normals (3 per face) and 8 triangles.
- *
- * @tparam T 3D vector type (e.g. glm::vec3)
  */
-template <typename T>
 struct Octahedron
 {
 	/**
 	 * @brief Tessellate the octahedron into vertex and index buffers suitable
 	 *        for GL_TRIANGLES rendering.
 	 *
-	 * Populates @p vertices and @p indices, replacing any existing content.
+	 * Appends 24 vertices to @p vertices and appends GL_TRIANGLES indices to
+	 * @p indices.
 	 *
 	 * @tparam VertexType 3D Vertex type providing .position and .normal each
-	 *                    constructible from three floats.
+	 *                    constructible from three floats (e.g. glm::vec3)
 	 * @tparam IndexType Integer type suitable for array indices
 	 *
-	 * @param vertices Vertex buffer output. Existing content is replaced.
-	 * @param indices Index buffer output. Existing content is replaced.
+	 * @param vertices Vertex buffer output. New vertices are appended.
+	 * @param indices Index buffer output. New indices are appended.
 	 */
 	template<typename VertexType, typename IndexType = unsigned int>
 	void tessellate(std::vector<VertexType>& vertices, std::vector<IndexType>& indices) const;
