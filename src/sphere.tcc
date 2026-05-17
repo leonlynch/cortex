@@ -13,8 +13,9 @@
 #define CORTEX_SPHERE_TCC
 
 #include <glm/glm.hpp>
+#include "vertex_traits.h"
 
-namespace {
+namespace detail {
 
 template <typename T, typename IndexType>
 void subdivide(std::size_t divisions, std::vector<T>& vertices, std::vector<IndexType>& indices, const IndexType* idx)
@@ -60,12 +61,15 @@ void subdivide(std::size_t divisions, std::vector<T>& vertices, std::vector<Inde
 	}
 }
 
-} // Anonymous namespace
+} // namespace detail
 
 template <typename T>
 template <typename VertexType, typename IndexType>
 void Sphere<T>::tessellate(std::size_t divisions, std::vector<VertexType>& vertices, std::vector<IndexType>& indices) const
 {
+	static_assert(std::is_default_constructible<VertexType>::value, "VertexType must be default-constructible");
+	static_assert(std::is_integral<IndexType>::value, "IndexType must be an integer type");
+
 	std::size_t offset = vertices.size();
 
 	T v[] = {
@@ -79,7 +83,7 @@ void Sphere<T>::tessellate(std::size_t divisions, std::vector<VertexType>& verti
 	std::vector<T> vectors;
 	std::vector<IndexType> vector_indices;
 	vectors.insert(vectors.end(), std::begin(v), std::end(v));
-	subdivide(divisions, vectors, vector_indices, v_idx);
+	detail::subdivide(divisions, vectors, vector_indices, v_idx);
 
 	// Create quarter of octahedron
 	{
@@ -140,15 +144,17 @@ void Sphere<T>::tessellate(std::size_t divisions, std::vector<VertexType>& verti
 
 	vertices.reserve(offset + vectors.size());
 	for (auto&& v : vectors) {
-		VertexType vertex;
+		VertexType vertex{};
 		vertex.position = v;
-		vertex.normal = glm::normalize(v);
+		if constexpr (detail::has_normal<VertexType>::value) {
+			vertex.normal = glm::normalize(v);
+		}
 		vertices.push_back(std::move(vertex));
 	}
 
 	indices.reserve(indices.size() + vector_indices.size());
 	for (auto idx : vector_indices) {
-		indices.push_back(offset + idx);
+		indices.push_back(static_cast<IndexType>(offset + idx));
 	}
 }
 

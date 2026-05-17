@@ -11,7 +11,6 @@
 #define CORTEX_SPHERE_H
 
 #include <cstddef>
-
 #include <vector>
 
 /**
@@ -36,9 +35,10 @@ struct Sphere
 	 * multiplies the triangle count by 4; @p divisions = 0 produces an
 	 * octahedron (8 triangles).
 	 *
-	 * @tparam VertexType 3D Vertex type providing .position and .normal
-	 *         assignable from T.
-	 * @tparam IndexType Integer type suitable for array indices
+	 * @tparam VertexType 3D vertex type with a @p .position member assignable
+	 *                    from T. An optional @p .normal member is assigned
+	 *                    from T when present.
+	 * @tparam IndexType Integer type suitable for array indices.
 	 *
 	 * @param divisions Number of subdivision levels. Must be >= 0.
 	 * @param vertices Vertex buffer output. New vertices are appended.

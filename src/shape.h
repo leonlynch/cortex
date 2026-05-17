@@ -27,9 +27,10 @@ struct Cube
 	 * Appends 24 vertices to @p vertices and appends GL_TRIANGLES indices to
 	 * @p indices.
 	 *
-	 * @tparam VertexType 3D Vertex type providing .position and .normal each
-	 *                    constructible from three floats (e.g. glm::vec3)
-	 * @tparam IndexType Integer type suitable for array indices
+	 * @tparam VertexType 3D vertex type with a @p .position member assignable
+	 *                    from three floats. An optional @p .normal member is
+	 *                    assigned from three floats when present.
+	 * @tparam IndexType Integer type suitable for array indices.
 	 *
 	 * @param vertices Vertex buffer output. New vertices are appended.
 	 * @param indices Index buffer output. New indices are appended.
@@ -53,9 +54,10 @@ struct Octahedron
 	 * Appends 24 vertices to @p vertices and appends GL_TRIANGLES indices to
 	 * @p indices.
 	 *
-	 * @tparam VertexType 3D Vertex type providing .position and .normal each
-	 *                    constructible from three floats (e.g. glm::vec3)
-	 * @tparam IndexType Integer type suitable for array indices
+	 * @tparam VertexType 3D vertex type with a @p .position member assignable
+	 *                    from three floats. An optional @p .normal member is
+	 *                    assigned from three floats when present.
+	 * @tparam IndexType Integer type suitable for array indices.
 	 *
 	 * @param vertices Vertex buffer output. New vertices are appended.
 	 * @param indices Index buffer output. New indices are appended.

@@ -6,7 +6,7 @@ Simple OpenGL demo
 Dependencies
 ------------
 
-* C++11 compiler such as GCC or Clang
+* C++17 compiler such as GCC or Clang
 * [CMake](https://cmake.org/) 4.2 or greater
 * [OpenGL](https://www.opengl.org/) 4.6 or greater
 * [GLEW](https://glew.sourceforge.net/) 2.1 or greater
