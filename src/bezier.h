@@ -10,8 +10,9 @@
 #ifndef CORTEX_BEZIER_H
 #define CORTEX_BEZIER_H
 
-#include <cstddef>
+#include "vertex_traits.h"
 
+#include <cstddef>
 #include <vector>
 #include <ostream>
 
@@ -27,6 +28,8 @@
 template <typename T, std::size_t n>
 struct BezierCurve
 {
+	static_assert(detail::has_value_type<T>::value, "T must provide a value_type member type");
+
 	using ControlPoint = T;
 
 	/** Control points k[0] through k[n] populated by constructor */
@@ -67,9 +70,10 @@ struct BezierCurve
 	 * Appends @p t_count uniformly spaced vertices to @p vertices and appends
 	 * GL_LINES indices to @p indices.
 	 *
-	 * @tparam VertexType 2D Vertex type providing .position and .normal
-	 *                    assignable from T.
-	 * @tparam IndexType Integer type suitable for array indices
+	 * @tparam VertexType 2D vertex type with a .position member assignable
+	 *                    from T. An optional .normal member is assigned
+	 *                    from T when present.
+	 * @tparam IndexType Integer type suitable for array indices.
 	 *
 	 * @param t_count Number of sample points. Must be >= 2.
 	 * @param vertices Vertex buffer output. New vertices are appended.
@@ -92,6 +96,8 @@ struct BezierCurve
 template <typename T, std::size_t n, std::size_t m>
 struct BezierSurface
 {
+	static_assert(detail::has_value_type<T>::value, "T must provide a value_type member type");
+
 	using ControlPoint = T;
 
 	/** Control points k[0..n][0..m] populated by constructor */
@@ -135,9 +141,10 @@ struct BezierSurface
 	 * Appends @p u_count x @p v_count uniformly spaced vertices to @p vertices
 	 * and appends GL_TRIANGLES indices to @p indices.
 	 *
-	 * @tparam VertexType 3D Vertex type providing .position and .normal
-	 *                    assignable from T.
-	 * @tparam IndexType Integer type suitable for array indices
+	 * @tparam VertexType 3D vertex type with a .position member assignable
+	 *                    from T. An optional .normal member is assigned
+	 *                    from T when present.
+	 * @tparam IndexType Integer type suitable for array indices.
 	 *
 	 * @param u_count Number of sample points along u. Must be >= 2.
 	 * @param v_count Number of sample points along v. Must be >= 2.

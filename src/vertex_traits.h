@@ -15,6 +15,29 @@
 namespace detail {
 
 /**
+ * @brief Trait detecting whether @p T provides a @c value_type member type.
+ *
+ * Intended for use with @c static_assert.
+ *
+ * @tparam T Template type to inspect.
+ *
+ * @par Example
+ * @code
+ * // glm::vec3 defines value_type = float
+ * static_assert(detail::has_value_type<glm::vec3>::value);
+ *
+ * // Plain float has no value_type
+ * static_assert(!detail::has_value_type<float>::value);
+ * @endcode
+ * @{
+ */
+template<typename T, typename = void>
+struct has_value_type : std::false_type {};
+template<typename T>
+struct has_value_type<T, std::void_t<typename T::value_type>> : std::true_type {};
+/// @}
+
+/**
  * @brief Trait detecting whether @p T provides a @c .normal data member.
  *
  * Intended for use with @c if @c constexpr (C++17) to populate the @c .normal

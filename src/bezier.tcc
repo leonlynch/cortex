@@ -9,12 +9,15 @@
 
 #include "bezier.h"
 
-#include <cmath>
-
-#include <utility>
-
 #ifndef CORTEX_BEZIER_TCC
 #define CORTEX_BEZIER_TCC
+
+#include "vertex_traits.h"
+
+#include <cmath>
+#include <utility>
+
+namespace detail {
 
 // Compile-time factorial template; terminate at x=0
 template<unsigned int x>
@@ -62,8 +65,9 @@ struct Bezier
 		// Bezier curve of degree n with control points k has derivative which is
 		// bezier curve of degree n-1 with control points d[i] = n(k[i + 1] - k[i])
 		T d[n];
-		for (std::size_t ni = 0; ni < n; ++ni)
+		for (std::size_t ni = 0; ni < n; ++ni) {
 			d[ni] = static_cast<typename T::value_type>(n) * (k[ni + 1] - k[ni]);
+		}
 
 		return Bezier<T,n-1>::position(d, t);
 	}
@@ -78,6 +82,8 @@ struct Bezier<T, n, 0>
 	}
 };
 
+} // namespace detail
+
 template <typename T, std::size_t n>
 BezierCurve<T,n>::BezierCurve(const ControlPoint control_points[n + 1])
 {
@@ -88,13 +94,13 @@ BezierCurve<T,n>::BezierCurve(const ControlPoint control_points[n + 1])
 template <typename T, std::size_t n>
 T BezierCurve<T,n>::position(double t) const
 {
-	return Bezier<T,n>::position(k, t);
+	return detail::Bezier<T,n>::position(k, t);
 }
 
 template <typename T, std::size_t n>
 T BezierCurve<T,n>::normal(double t) const
 {
-	T dt = Bezier<T,n>::tangent(k, t);
+	T dt = detail::Bezier<T,n>::tangent(k, t);
 
 	// Rotate 90deg counter-clockwise
 	return T(-dt[1], dt[0]);
@@ -104,6 +110,9 @@ template <typename T, std::size_t n>
 template <typename VertexType, typename IndexType>
 void BezierCurve<T,n>::tessellate(std::size_t t_count, std::vector<VertexType>& vertices, std::vector<IndexType>& indices) const
 {
+	static_assert(std::is_default_constructible<VertexType>::value, "VertexType must be default-constructible");
+	static_assert(std::is_integral<IndexType>::value, "IndexType must be an integer type");
+
 	vertices.reserve(vertices.size() + t_count);
 	indices.reserve(indices.size() + ((t_count - 1) * 2));
 
@@ -111,14 +120,16 @@ void BezierCurve<T,n>::tessellate(std::size_t t_count, std::vector<VertexType>& 
 	for (std::size_t i = 0; i < t_count; ++i) {
 		double t = i / static_cast<double>(t_count - 1);
 
-		VertexType vertex;
+		VertexType vertex{};
 		vertex.position = position(t);
-		vertex.normal = normal(t);
+		if constexpr (detail::has_normal<VertexType>::value) {
+			vertex.normal = normal(t);
+		}
 		vertices.push_back(std::move(vertex));
 
 		if (i < t_count - 1) {
-			indices.push_back(offset + i);
-			indices.push_back(offset + (i + 1));
+			indices.push_back(static_cast<IndexType>(offset + i));
+			indices.push_back(static_cast<IndexType>(offset + (i + 1)));
 		}
 	}
 }
@@ -138,9 +149,9 @@ T BezierSurface<T,n,m>::position(double u, double v) const
 
 	// Evaluate curves in direction m/v to obtain intermediate control points in direction n/u
 	for (std::size_t i = 0; i < n + 1; ++i)
-		kn[i] = Bezier<T,m>::position(k[i], v);
+		kn[i] = detail::Bezier<T,m>::position(k[i], v);
 
-	return Bezier<T,n>::position(kn, u);
+	return detail::Bezier<T,n>::position(kn, u);
 }
 
 template <typename T, std::size_t n, std::size_t m>
@@ -151,7 +162,7 @@ T BezierSurface<T,n,m>::normal(double u, double v) const
 
 	// Evaluate curves in direction m/v to obtain intermediate control points in direction n/u
 	for (std::size_t i = 0; i < n + 1; ++i)
-		kn[i] = Bezier<T,m>::position(k[i], v);
+		kn[i] = detail::Bezier<T,m>::position(k[i], v);
 
 	// Evaluate curves in direction n/u to obtain intermediate control points in direction m/v
 	for (std::size_t i = 0; i < m + 1; ++i) {
@@ -160,11 +171,11 @@ T BezierSurface<T,n,m>::normal(double u, double v) const
 		for (std::size_t j = 0; j < n + 1; ++j)
 			kmn[j] = k[j][i];
 
-		km[i] = Bezier<T,n>::position(kmn, u);
+		km[i] = detail::Bezier<T,n>::position(kmn, u);
 	}
 
-	T du = Bezier<T, n>::tangent(kn, u);
-	T dv = Bezier<T, m>::tangent(km, v);
+	T du = detail::Bezier<T, n>::tangent(kn, u);
+	T dv = detail::Bezier<T, m>::tangent(km, v);
 
 	// Cross product
 	return T(
@@ -178,6 +189,9 @@ template <typename T, std::size_t n, std::size_t m>
 template <typename VertexType, typename IndexType>
 void BezierSurface<T,n,m>::tessellate(std::size_t u_count, std::size_t v_count, std::vector<VertexType>& vertices, std::vector<IndexType>& indices) const
 {
+	static_assert(std::is_default_constructible<VertexType>::value, "VertexType must be default-constructible");
+	static_assert(std::is_integral<IndexType>::value, "IndexType must be an integer type");
+
 	vertices.reserve(vertices.size() + (u_count * v_count));
 	indices.reserve(indices.size() + ((u_count - 1) * (v_count - 1) * 3 * 2));
 
@@ -187,18 +201,20 @@ void BezierSurface<T,n,m>::tessellate(std::size_t u_count, std::size_t v_count, 
 			double u = i / static_cast<double>(u_count - 1);
 			double v = j / static_cast<double>(v_count - 1);
 
-			VertexType vertex;
+			VertexType vertex{};
 			vertex.position = position(u, v);
-			vertex.normal = normal(u, v);
+			if constexpr (detail::has_normal<VertexType>::value) {
+				vertex.normal = normal(u, v);
+			}
 			vertices.push_back(std::move(vertex));
 
 			if (i < u_count - 1 && j < v_count - 1) {
-				indices.push_back(offset + (i * v_count + j));
-				indices.push_back(offset + ((i + 1) * v_count + j));
-				indices.push_back(offset + (i * v_count + j + 1));
-				indices.push_back(offset + (i * v_count + j + 1));
-				indices.push_back(offset + ((i + 1) * v_count + j));
-				indices.push_back(offset + ((i + 1) * v_count + j + 1));
+				indices.push_back(static_cast<IndexType>(offset + (i * v_count + j)));
+				indices.push_back(static_cast<IndexType>(offset + ((i + 1) * v_count + j)));
+				indices.push_back(static_cast<IndexType>(offset + (i * v_count + j + 1)));
+				indices.push_back(static_cast<IndexType>(offset + (i * v_count + j + 1)));
+				indices.push_back(static_cast<IndexType>(offset + ((i + 1) * v_count + j)));
+				indices.push_back(static_cast<IndexType>(offset + ((i + 1) * v_count + j + 1)));
 			}
 		}
 	}
