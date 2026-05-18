@@ -66,6 +66,35 @@ template<typename T>
 struct has_normal<T, std::void_t<decltype(std::declval<T&>().normal)>> : std::true_type {};
 /// @}
 
+/**
+ * @brief Trait detecting whether @p T provides a @c .texcoord data member.
+ *
+ * Intended for use with @c if @c constexpr (C++17) to populate the @c .texcoord
+ * member conditionally if present.
+ *
+ * @tparam T Template type to inspect.
+ *
+ * @par Example
+ * @code
+ * struct vertex_with_texcoord_t { glm::vec3 position; glm::vec2 texcoord; };
+ * struct vertex_without_texcoord_t { glm::vec3 position; };
+ *
+ * static_assert(detail::has_texcoord<vertex_with_texcoord_t>::value);
+ * static_assert(!detail::has_texcoord<vertex_without_texcoord_t>::value);
+ *
+ * // Conditional assignment:
+ * if constexpr (detail::has_texcoord<T>::value) {
+ *     v.texcoord = { ... };
+ * }
+ * @endcode
+ * @{
+ */
+template<typename T, typename = void>
+struct has_texcoord : std::false_type {};
+template<typename T>
+struct has_texcoord<T, std::void_t<decltype(std::declval<T&>().texcoord)>> : std::true_type {};
+/// @}
+
 } // namespace detail
 
 #endif

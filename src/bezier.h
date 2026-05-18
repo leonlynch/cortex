@@ -70,9 +70,10 @@ struct BezierCurve
 	 * Appends @p t_count uniformly spaced vertices to @p vertices and appends
 	 * GL_LINES indices to @p indices.
 	 *
-	 * @tparam VertexType 2D vertex type with a .position member assignable
-	 *                    from T. An optional .normal member is assigned
-	 *                    from T when present.
+	 * @tparam VertexType 2D vertex type with a @p .position member assignable
+	 *                    from T. Optional @p .normal member is assigned from T
+	 *                    when present. Optional @p .texcoord is assigned from
+	 *                    sample point t when present.
 	 * @tparam IndexType Integer type suitable for array indices.
 	 *
 	 * @param t_count Number of sample points. Must be >= 2.
@@ -141,9 +142,10 @@ struct BezierSurface
 	 * Appends @p u_count x @p v_count uniformly spaced vertices to @p vertices
 	 * and appends GL_TRIANGLES indices to @p indices.
 	 *
-	 * @tparam VertexType 3D vertex type with a .position member assignable
-	 *                    from T. An optional .normal member is assigned
-	 *                    from T when present.
+	 * @tparam VertexType 3D vertex type with a @p .position member assignable
+	 *                    from T. Optional @p .normal member is assigned from T
+	 *                    when present. Optional @p .texcoord is assigned from
+	 *                    sample point (u, v) when present.
 	 * @tparam IndexType Integer type suitable for array indices.
 	 *
 	 * @param u_count Number of sample points along u. Must be >= 2.

@@ -82,6 +82,15 @@ struct Bezier<T, n, 0>
 	}
 };
 
+template<typename T>
+T make_texcoord(double t)
+{
+	if constexpr (std::is_arithmetic_v<T>)
+		return static_cast<T>(t);
+	else
+		return T(static_cast<typename T::value_type>(t));
+}
+
 } // namespace detail
 
 template <typename T, std::size_t n>
@@ -124,6 +133,9 @@ void BezierCurve<T,n>::tessellate(std::size_t t_count, std::vector<VertexType>& 
 		vertex.position = position(t);
 		if constexpr (detail::has_normal<VertexType>::value) {
 			vertex.normal = normal(t);
+		}
+		if constexpr (detail::has_texcoord<VertexType>::value) {
+			vertex.texcoord = detail::make_texcoord<decltype(vertex.texcoord)>(t);
 		}
 		vertices.push_back(std::move(vertex));
 
@@ -205,6 +217,10 @@ void BezierSurface<T,n,m>::tessellate(std::size_t u_count, std::size_t v_count, 
 			vertex.position = position(u, v);
 			if constexpr (detail::has_normal<VertexType>::value) {
 				vertex.normal = normal(u, v);
+			}
+			if constexpr (detail::has_texcoord<VertexType>::value) {
+				using S = typename decltype(vertex.texcoord)::value_type;
+				vertex.texcoord = { static_cast<S>(u), static_cast<S>(v) };
 			}
 			vertices.push_back(std::move(vertex));
 
