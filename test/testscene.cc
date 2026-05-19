@@ -44,25 +44,17 @@ static int height = 0;
 static unsigned int tick = 0;
 static bool render_normals = false;
 
-// Resources
-static GLuint program = 0;
-static GLuint vertex_shader = 0;
-static GLuint fragment_shader = 0;
+struct shader_program_t {
+	GLuint program = 0;
+	GLuint vertex_shader = 0;
+	GLuint fragment_shader = 0;
+	std::map<std::string, GLint> uniform_location;
+	std::map<std::string, GLint> attribute_location;
+	GLint fragdata_location = 0;
 
-// Uniform location map
-typedef std::map<std::string, GLint> uniform_location_t;
-static uniform_location_t uniform_location;
-static GLint uniform_count = 0;
-static GLint uniform_max_length = 0;
-
-// Attribute location map
-typedef std::map<std::string, GLint> attribute_location_t;
-static attribute_location_t attribute_location;
-static GLint attribute_count = 0;
-static GLint attribute_max_length = 0;
-
-// Fragment data output
-static GLint fragdata_location = 0;
+	GLint uniform(const std::string& name) const { return uniform_location.at(name); }
+	GLint attribute(const std::string& name) const { return attribute_location.at(name); }
+};
 
 struct vertex_t {
 	glm::vec3 position;
@@ -88,7 +80,12 @@ struct mesh_t {
 	GLsizei index_count = 0;
 
 	normals_t normals;
+
+	const shader_program_t* shader = nullptr;
 };
+
+// Shader program
+static shader_program_t default_shader;
 
 // Cube mesh
 static Cube cube;
@@ -142,6 +139,7 @@ static mesh_t sphere_mesh;
 // Helper function declarations
 static void scene_update_mesh(const std::vector<vertex_t>& vertices, const std::vector<unsigned int>& indices, mesh_t* mesh);
 static void scene_update_mesh_normals(const std::vector<vertex_t>& vertices, normals_t* normals);
+static void scene_unload_shader_program(shader_program_t* shader_program);
 
 
 int scene_init(void)
@@ -311,7 +309,123 @@ exit:
 	return shader;
 }
 
-static void scene_load_mesh(const std::vector<vertex_t>& vertices, const std::vector<unsigned int>& indices, mesh_t* mesh)
+static int scene_load_shader_program(const std::string& vertex_shader_file, const std::string& fragment_shader_file, shader_program_t* shader_program)
+{
+	int r;
+	GLint link_status = GL_FALSE;
+	GLint validate_status = GL_FALSE;
+	GLint info_log_len;
+	std::vector<GLchar> info_log;
+	GLint uniform_count;
+	GLint uniform_max_length;
+	GLint attribute_count;
+	GLint attribute_max_length;
+
+	shader_program->program = glCreateProgram();
+	if (!shader_program->program) {
+		fprintf(stderr, "glCreateProgram() failed\n");
+		r = -1;
+		goto error;
+	}
+
+	shader_program->vertex_shader = scene_load_shader(vertex_shader_file, GL_VERTEX_SHADER);
+	if (!shader_program->vertex_shader) {
+		fprintf(stderr, "Failed to load vertex shader: %s\n", vertex_shader_file.c_str());
+		r = -2;
+		goto error;
+	}
+
+	shader_program->fragment_shader = scene_load_shader(fragment_shader_file, GL_FRAGMENT_SHADER);
+	if (!shader_program->fragment_shader) {
+		fprintf(stderr, "Failed to load fragment shader: %s\n", fragment_shader_file.c_str());
+		r = -3;
+		goto error;
+	}
+
+	// Add shaders to program
+	glAttachShader(shader_program->program, shader_program->vertex_shader);
+	glAttachShader(shader_program->program, shader_program->fragment_shader);
+
+	// Link program
+	glLinkProgram(shader_program->program);
+	info_log_len = 0;
+	info_log.clear();
+	glGetProgramiv(shader_program->program, GL_INFO_LOG_LENGTH, &info_log_len);
+	if (info_log_len > 1) {
+		info_log.resize(info_log_len);
+		glGetProgramInfoLog(shader_program->program, info_log.size(), NULL, info_log.data());
+	}
+
+	glGetProgramiv(shader_program->program, GL_LINK_STATUS, &link_status);
+	if (link_status != GL_TRUE) {
+		fprintf(stderr, "Error linking shader program:\n%s\n", info_log.data());
+		r = -4;
+		goto error;
+	}
+	if (!info_log.empty()) {
+		printf("Shader program log:\n%s\n", info_log.data());
+	}
+
+	// Validate program
+	glValidateProgram(shader_program->program);
+	info_log_len = 0;
+	info_log.clear();
+	glGetProgramiv(shader_program->program, GL_INFO_LOG_LENGTH, &info_log_len);
+	if (info_log_len > 1) {
+		info_log.resize(info_log_len);
+		glGetProgramInfoLog(shader_program->program, info_log.size(), NULL, info_log.data());
+	}
+
+	glGetProgramiv(shader_program->program, GL_VALIDATE_STATUS, &validate_status);
+	if (validate_status != GL_TRUE) {
+		fprintf(stderr, "Invalid shader program:\n%s\n", info_log.data());
+		r = -5;
+		goto error;
+	}
+
+	// Lookup all uniforms
+	uniform_count = 0;
+	uniform_max_length = 0;
+	glGetProgramiv(shader_program->program, GL_ACTIVE_UNIFORMS, &uniform_count);
+	glGetProgramiv(shader_program->program, GL_ACTIVE_UNIFORM_MAX_LENGTH, &uniform_max_length);
+	for (int i = 0; i < uniform_count; ++i) {
+		GLchar uniform_name[uniform_max_length];
+		GLint uniform_size = 0;
+		GLenum uniform_type = 0;
+		glGetActiveUniform(shader_program->program, i, sizeof(uniform_name), NULL, &uniform_size, &uniform_type, uniform_name);
+		shader_program->uniform_location[uniform_name] = glGetUniformLocation(shader_program->program, uniform_name);
+		printf("%s(); uniform='%s'; size=%d; type=%d; location=%d\n", __FUNCTION__, uniform_name, uniform_size, uniform_type, shader_program->uniform_location[uniform_name]);
+	}
+
+	// Lookup all attributes
+	attribute_count = 0;
+	attribute_max_length = 0;
+	glGetProgramiv(shader_program->program, GL_ACTIVE_ATTRIBUTES, &attribute_count);
+	glGetProgramiv(shader_program->program, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, &attribute_max_length);
+	for (int i = 0; i < attribute_count; ++i) {
+		GLchar attribute_name[attribute_max_length];
+		GLint attribute_size = 0;
+		GLenum attribute_type = 0;
+		glGetActiveAttrib(shader_program->program, i, sizeof(attribute_name), NULL, &attribute_size, &attribute_type, attribute_name);
+		shader_program->attribute_location[attribute_name] = glGetAttribLocation(shader_program->program, attribute_name);
+		printf("%s(); attribute='%s'; size=%d; type=%d; location=%d\n", __FUNCTION__, attribute_name, attribute_size, attribute_type, shader_program->attribute_location[attribute_name]);
+	}
+
+	// Lookup fragment output
+	shader_program->fragdata_location = glGetFragDataLocation(shader_program->program, "color");
+	printf("%s(); fragdata='%s'; location=%d\n", __FUNCTION__, "color", shader_program->fragdata_location);
+
+	r = 0;
+	goto exit;
+
+error:
+	scene_unload_shader_program(shader_program);
+
+exit:
+	return r;
+}
+
+static void scene_load_mesh(const std::vector<vertex_t>& vertices, const std::vector<unsigned int>& indices, const shader_program_t* shader, mesh_t* mesh)
 {
 	// VAO layout:
 	// - VBO #0 for position and normal data (interleaved)
@@ -327,16 +441,18 @@ static void scene_load_mesh(const std::vector<vertex_t>& vertices, const std::ve
 	glVertexArrayElementBuffer(mesh->vao, mesh->ibo);
 
 	// Setup format and binding for vertex data
-	GLuint pos_loc = attribute_location["v_position"];
+	GLuint pos_loc = shader->attribute("v_position");
 	glEnableVertexArrayAttrib(mesh->vao, pos_loc);
 	glVertexArrayAttribBinding(mesh->vao, pos_loc, mesh->vbo_binding);
 	glVertexArrayAttribFormat(mesh->vao, pos_loc, 3, GL_FLOAT, GL_FALSE, 0);
 
 	// Setup format and binding for normal data
-	GLuint norm_loc = attribute_location["v_normal"];
+	GLuint norm_loc = shader->attribute("v_normal");
 	glEnableVertexArrayAttrib(mesh->vao, norm_loc);
 	glVertexArrayAttribBinding(mesh->vao, norm_loc, mesh->vbo_binding);
 	glVertexArrayAttribFormat(mesh->vao, norm_loc, 3, GL_FLOAT, GL_FALSE, offsetof(struct vertex_t, normal));
+
+	mesh->shader = shader;
 
 	// Load data
 	scene_update_mesh(vertices, indices, mesh);
@@ -358,7 +474,7 @@ static void scene_update_mesh(const std::vector<vertex_t>& vertices, const std::
 	printf("%s(); vao=%u; vbo=%u[%zu]; ibo=%u[%zu]\n", __FUNCTION__, mesh->vao, mesh->vbo, vertices.size(), mesh->ibo, indices.size());
 }
 
-static void scene_load_mesh_normals(const std::vector<vertex_t>& vertices, normals_t* normals)
+static void scene_load_mesh_normals(const std::vector<vertex_t>& vertices, const shader_program_t* shader, normals_t* normals)
 {
 	// VAO layout:
 	// - VBO #0 for position
@@ -372,7 +488,7 @@ static void scene_load_mesh_normals(const std::vector<vertex_t>& vertices, norma
 	glVertexArrayVertexBuffer(normals->vao, normals->vbo_binding, normals->vbo, 0, sizeof(glm::vec3));
 
 	// Setup format and binding for vertex data
-	GLuint pos_loc = attribute_location["v_position"];
+	GLuint pos_loc = shader->attribute("v_position");
 	glEnableVertexArrayAttrib(normals->vao, pos_loc);
 	glVertexArrayAttribBinding(normals->vao, pos_loc, normals->vbo_binding);
 	glVertexArrayAttribFormat(normals->vao, pos_loc, 3, GL_FLOAT, GL_FALSE, 0);
@@ -403,132 +519,67 @@ static void scene_update_mesh_normals(const std::vector<vertex_t>& vertices, nor
 
 int scene_load_resources(void)
 {
-	GLint link_status = GL_FALSE;
-	GLint validate_status = GL_FALSE;
-	GLint info_log_len;
-	std::vector<GLchar> info_log;
+	int r;
 
-	program = glCreateProgram();
-	if (!program) {
-		fprintf(stderr, "glCreateProgram() failed\n");
-		return -1;
+	// Load shaders
+	r = scene_load_shader_program("test/simple.vert.glsl", "test/simple.frag.glsl", &default_shader);
+	if (r) {
+		fprintf(stderr, "Failed to load shader program\n");
+		return r;
 	}
-
-	vertex_shader = scene_load_shader("test/simple.vert.glsl", GL_VERTEX_SHADER);
-	if (!vertex_shader) {
-		fprintf(stderr, "Failed to load vertex shader\n");
-		return -1;
-	}
-
-	fragment_shader = scene_load_shader("test/simple.frag.glsl", GL_FRAGMENT_SHADER);
-	if (!fragment_shader) {
-		fprintf(stderr, "Failed to load fragment shader\n");
-		return -1;
-	}
-
-	// Add shaders to program
-	glAttachShader(program, vertex_shader);
-	glAttachShader(program, fragment_shader);
-
-	// Link program
-	glLinkProgram(program);
-	info_log_len = 0;
-	info_log.clear();
-	glGetProgramiv(program, GL_INFO_LOG_LENGTH, &info_log_len);
-	if (info_log_len > 1) {
-		info_log.resize(info_log_len);
-		glGetProgramInfoLog(program, info_log.size(), NULL, info_log.data());
-	}
-
-	glGetProgramiv(program, GL_LINK_STATUS, &link_status);
-	if (link_status != GL_TRUE) {
-		fprintf(stderr, "Error linking shader program:\n%s\n", info_log.data());
-		return -1;
-	}
-	if (!info_log.empty()) {
-		printf("Shader program log:\n%s\n", info_log.data());
-	}
-
-	// Validate program
-	glValidateProgram(program);
-	info_log_len = 0;
-	info_log.clear();
-	glGetProgramiv(program, GL_INFO_LOG_LENGTH, &info_log_len);
-	if (info_log_len > 1) {
-		info_log.resize(info_log_len);
-		glGetProgramInfoLog(program, info_log.size(), NULL, info_log.data());
-	}
-
-	glGetProgramiv(program, GL_VALIDATE_STATUS, &validate_status);
-	if (validate_status != GL_TRUE) {
-		fprintf(stderr, "Invalid program:\n%s\n", info_log.data());
-		return -1;
-	}
-
-	// Lookup all uniforms
-	glGetProgramiv(program, GL_ACTIVE_UNIFORMS, &uniform_count);
-	glGetProgramiv(program, GL_ACTIVE_UNIFORM_MAX_LENGTH, &uniform_max_length);
-	for (int i = 0; i < uniform_count; ++i) {
-		GLchar uniform_name[uniform_max_length];
-		GLint uniform_size = 0;
-		GLenum uniform_type = 0;
-		glGetActiveUniform(program, i, sizeof(uniform_name), NULL, &uniform_size, &uniform_type, uniform_name);
-		uniform_location[uniform_name] = glGetUniformLocation(program, uniform_name);
-		printf("%s(); uniform='%s'; size=%d; type=%d; location=%d\n", __FUNCTION__, uniform_name, uniform_size, uniform_type, uniform_location[uniform_name]);
-	}
-
-	// Lookup all attributes
-	glGetProgramiv(program, GL_ACTIVE_ATTRIBUTES, &attribute_count);
-	glGetProgramiv(program, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, &attribute_max_length);
-	for (int i = 0; i < attribute_count; ++i) {
-		GLchar attribute_name[attribute_max_length];
-		GLint attribute_size = 0;
-		GLenum attribute_type = 0;
-		glGetActiveAttrib(program, i, sizeof(attribute_name), NULL, &attribute_size, &attribute_type, attribute_name);
-		attribute_location[attribute_name] = glGetAttribLocation(program, attribute_name);
-		printf("%s(); attribute='%s'; size=%d; type=%d; location=%d\n", __FUNCTION__, attribute_name, attribute_size, attribute_type, attribute_location[attribute_name]);
-	}
-
-	// Lookup fragment output
-	fragdata_location = glGetFragDataLocation(program, "color");
-	printf("%s(); fragdata='%s'; location=%d\n", __FUNCTION__, "color", fragdata_location);
 
 	// Load cube mesh
 	cube.tessellate(cube_vertices, cube_indices);
-	scene_load_mesh(cube_vertices, cube_indices, &cube_mesh);
-	scene_load_mesh_normals(cube_vertices, &cube_mesh.normals);
+	scene_load_mesh(cube_vertices, cube_indices, &default_shader, &cube_mesh);
+	scene_load_mesh_normals(cube_vertices, &default_shader, &cube_mesh.normals);
 
 	// Load octahedron mesh
 	octahedron.tessellate(octahedron_vertices, octahedron_indices);
-	scene_load_mesh(octahedron_vertices, octahedron_indices, &octahedron_mesh);
-	scene_load_mesh_normals(octahedron_vertices, &octahedron_mesh.normals);
+	scene_load_mesh(octahedron_vertices, octahedron_indices, &default_shader, &octahedron_mesh);
+	scene_load_mesh_normals(octahedron_vertices, &default_shader, &octahedron_mesh.normals);
 
 	// Load bezier surface mesh
 	bezier_surface.tessellate(16, 16, bezier_surface_vertices, bezier_surface_indices);
-	scene_load_mesh(bezier_surface_vertices, bezier_surface_indices, &bezier_surface_mesh);
-	scene_load_mesh_normals(bezier_surface_vertices, &bezier_surface_mesh.normals);
+	scene_load_mesh(bezier_surface_vertices, bezier_surface_indices, &default_shader, &bezier_surface_mesh);
+	scene_load_mesh_normals(bezier_surface_vertices, &default_shader, &bezier_surface_mesh.normals);
 
 	// Load teapot mesh
 	teapot.tessellate(12, 12, teapot_vertices, teapot_indices);
-	scene_load_mesh(teapot_vertices, teapot_indices, &teapot_mesh);
-	scene_load_mesh_normals(teapot_vertices, &teapot_mesh.normals);
+	scene_load_mesh(teapot_vertices, teapot_indices, &default_shader, &teapot_mesh);
+	scene_load_mesh_normals(teapot_vertices, &default_shader, &teapot_mesh.normals);
 
 	// Load teacup mesh
 	teacup.tessellate(8, 8, teacup_vertices, teacup_indices);
-	scene_load_mesh(teacup_vertices, teacup_indices, &teacup_mesh);
-	scene_load_mesh_normals(teacup_vertices, &teacup_mesh.normals);
+	scene_load_mesh(teacup_vertices, teacup_indices, &default_shader, &teacup_mesh);
+	scene_load_mesh_normals(teacup_vertices, &default_shader, &teacup_mesh.normals);
 
 	// Load teaspoon mesh
 	teaspoon.tessellate(8, 8, teaspoon_vertices, teaspoon_indices);
-	scene_load_mesh(teaspoon_vertices, teaspoon_indices, &teaspoon_mesh);
-	scene_load_mesh_normals(teaspoon_vertices, &teaspoon_mesh.normals);
+	scene_load_mesh(teaspoon_vertices, teaspoon_indices, &default_shader, &teaspoon_mesh);
+	scene_load_mesh_normals(teaspoon_vertices, &default_shader, &teaspoon_mesh.normals);
 
 	// Load sphere mesh
 	sphere.tessellate(3, sphere_vertices, sphere_indices);
-	scene_load_mesh(sphere_vertices, sphere_indices, &sphere_mesh);
-	scene_load_mesh_normals(sphere_vertices, &sphere_mesh.normals);
+	scene_load_mesh(sphere_vertices, sphere_indices, &default_shader, &sphere_mesh);
+	scene_load_mesh_normals(sphere_vertices, &default_shader, &sphere_mesh.normals);
 
 	return 0;
+}
+
+static void scene_unload_shader_program(shader_program_t* shader_program)
+{
+	shader_program->uniform_location.clear();
+	shader_program->attribute_location.clear();
+
+	if (shader_program->vertex_shader) {
+		glDeleteShader(shader_program->vertex_shader);
+	}
+	if (shader_program->fragment_shader) {
+		glDeleteShader(shader_program->fragment_shader);
+	}
+	if (shader_program->program) {
+		glDeleteProgram(shader_program->program);
+	}
 }
 
 static void scene_unload_mesh(mesh_t* mesh)
@@ -569,15 +620,7 @@ void scene_unload_resources(void)
 	scene_unload_mesh(&teaspoon_mesh);
 	scene_unload_mesh(&sphere_mesh);
 
-	if (vertex_shader) {
-		glDeleteShader(vertex_shader);
-	}
-	if (fragment_shader) {
-		glDeleteShader(fragment_shader);
-	}
-	if (program) {
-		glDeleteProgram(program);
-	}
+	scene_unload_shader_program(&default_shader);
 }
 
 void scene_update(void)
@@ -591,6 +634,21 @@ void scene_render(enum scene_demo_t scene_demo)
 
 	glViewport(0, 0, width, height);
 
+	// Determine current mesh and shader program
+	const mesh_t* current_mesh = nullptr;
+	const shader_program_t* current_shader = nullptr;
+	switch (scene_demo) {
+		case SCENE_DEMO_CUBE: current_mesh = &cube_mesh; break;
+		case SCENE_DEMO_OCTAHEDRON: current_mesh = &octahedron_mesh; break;
+		case SCENE_DEMO_BEZIER: current_mesh = &bezier_surface_mesh; break;
+		case SCENE_DEMO_TEAPOT: current_mesh = &teapot_mesh; break;
+		case SCENE_DEMO_TEACUP: current_mesh = &teacup_mesh; break;
+		case SCENE_DEMO_TEASPOON: current_mesh = &teaspoon_mesh; break;
+		case SCENE_DEMO_SPHERE: current_mesh = &sphere_mesh; break;
+		default: current_mesh = &cube_mesh;
+	}
+	current_shader = current_mesh->shader;
+
 	// Uniform matrices
 	glm::mat4 m_projection = glm::perspective(glm::radians(45.0f), width / (float)height, 0.1f, 100.0f);
 	glm::mat4 m_view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -8.0f));
@@ -602,9 +660,9 @@ void scene_render(enum scene_demo_t scene_demo)
 	glm::mat4 m_mvp = m_projection * m_modelview;
 	glm::mat3 m_normal = glm::inverseTranspose(glm::mat3(m_modelview));
 
-	glProgramUniformMatrix4fv(program, uniform_location["m_mvp"], 1, GL_FALSE, glm::value_ptr(m_mvp));
-	glProgramUniformMatrix4fv(program, uniform_location["m_modelview"], 1, GL_FALSE, glm::value_ptr(m_modelview));
-	glProgramUniformMatrix3fv(program, uniform_location["m_normal"], 1, GL_FALSE, glm::value_ptr(m_normal));
+	glProgramUniformMatrix4fv(current_shader->program, current_shader->uniform("m_mvp"), 1, GL_FALSE, glm::value_ptr(m_mvp));
+	glProgramUniformMatrix4fv(current_shader->program, current_shader->uniform("m_modelview"), 1, GL_FALSE, glm::value_ptr(m_modelview));
+	glProgramUniformMatrix3fv(current_shader->program, current_shader->uniform("m_normal"), 1, GL_FALSE, glm::value_ptr(m_normal));
 
 	// Uniform light parameters
 	glm::vec4 light_position = glm::vec4(15.0f, 15.0f, 15.0f, 1.0f);
@@ -612,10 +670,10 @@ void scene_render(enum scene_demo_t scene_demo)
 	glm::vec3 light_diffuse = glm::vec3(0.8f, 0.8f, 0.8f);
 	glm::vec3 light_specular = glm::vec3(1.0f, 1.0f, 1.0f);
 
-	glProgramUniform4fv(program, uniform_location["light.position"], 1, glm::value_ptr(light_position));
-	glProgramUniform3fv(program, uniform_location["light.ambient"], 1, glm::value_ptr(light_ambient));
-	glProgramUniform3fv(program, uniform_location["light.diffuse"], 1, glm::value_ptr(light_diffuse));
-	glProgramUniform3fv(program, uniform_location["light.specular"], 1, glm::value_ptr(light_specular));
+	glProgramUniform4fv(current_shader->program, current_shader->uniform("light.position"), 1, glm::value_ptr(light_position));
+	glProgramUniform3fv(current_shader->program, current_shader->uniform("light.ambient"), 1, glm::value_ptr(light_ambient));
+	glProgramUniform3fv(current_shader->program, current_shader->uniform("light.diffuse"), 1, glm::value_ptr(light_diffuse));
+	glProgramUniform3fv(current_shader->program, current_shader->uniform("light.specular"), 1, glm::value_ptr(light_specular));
 
 	// Uniform material parameters
 	glm::vec3 material_ambient = glm::vec3(0.2f, 0.0f, 0.0f);
@@ -623,26 +681,13 @@ void scene_render(enum scene_demo_t scene_demo)
 	glm::vec3 material_specular = glm::vec3(1.0f, 1.0f, 1.0f);
 	float material_shininess = 25;
 
-	glProgramUniform3fv(program, uniform_location["material.ambient"], 1, glm::value_ptr(material_ambient));
-	glProgramUniform3fv(program, uniform_location["material.diffuse"], 1, glm::value_ptr(material_diffuse));
-	glProgramUniform3fv(program, uniform_location["material.specular"], 1, glm::value_ptr(material_specular));
-	glProgramUniform1f(program, uniform_location["material.shininess"], material_shininess);
-
-	// Determine current mesh
-	mesh_t* current_mesh = nullptr;
-	switch (scene_demo) {
-		case SCENE_DEMO_CUBE: current_mesh = &cube_mesh; break;
-		case SCENE_DEMO_OCTAHEDRON: current_mesh = &octahedron_mesh; break;
-		case SCENE_DEMO_BEZIER: current_mesh = &bezier_surface_mesh; break;
-		case SCENE_DEMO_TEAPOT: current_mesh = &teapot_mesh; break;
-		case SCENE_DEMO_TEACUP: current_mesh = &teacup_mesh; break;
-		case SCENE_DEMO_TEASPOON: current_mesh = &teaspoon_mesh; break;
-		case SCENE_DEMO_SPHERE: current_mesh = &sphere_mesh; break;
-		default: current_mesh = &cube_mesh;
-	}
+	glProgramUniform3fv(current_shader->program, current_shader->uniform("material.ambient"), 1, glm::value_ptr(material_ambient));
+	glProgramUniform3fv(current_shader->program, current_shader->uniform("material.diffuse"), 1, glm::value_ptr(material_diffuse));
+	glProgramUniform3fv(current_shader->program, current_shader->uniform("material.specular"), 1, glm::value_ptr(material_specular));
+	glProgramUniform1f(current_shader->program, current_shader->uniform("material.shininess"), material_shininess);
 
 	// Render current mesh
-	glUseProgram(program);
+	glUseProgram(current_shader->program);
 	glBindVertexArray(current_mesh->vao);
 	glDrawElements(GL_TRIANGLES, current_mesh->index_count, GL_UNSIGNED_INT, 0);
 
@@ -650,14 +695,14 @@ void scene_render(enum scene_demo_t scene_demo)
 		// Update uniform light parameters for normal lines
 		light_ambient = glm::vec3(1.0f, 1.0f, 1.0f);
 		light_diffuse = glm::vec3(1.0f, 1.0f, 1.0f);
-		glProgramUniform3fv(program, uniform_location["light.ambient"], 1, glm::value_ptr(light_ambient));
-		glProgramUniform3fv(program, uniform_location["light.diffuse"], 1, glm::value_ptr(light_diffuse));
+		glProgramUniform3fv(current_shader->program, current_shader->uniform("light.ambient"), 1, glm::value_ptr(light_ambient));
+		glProgramUniform3fv(current_shader->program, current_shader->uniform("light.diffuse"), 1, glm::value_ptr(light_diffuse));
 
 		// Update uniform material parameters for normal lines
 		material_ambient = glm::vec3(1.0f, 1.0f, 1.0f);
 		material_diffuse = glm::vec3(1.0f, 1.0f, 1.0f);
-		glProgramUniform3fv(program, uniform_location["material.ambient"], 1, glm::value_ptr(material_ambient));
-		glProgramUniform3fv(program, uniform_location["material.diffuse"], 1, glm::value_ptr(material_diffuse));
+		glProgramUniform3fv(current_shader->program, current_shader->uniform("material.ambient"), 1, glm::value_ptr(material_ambient));
+		glProgramUniform3fv(current_shader->program, current_shader->uniform("material.diffuse"), 1, glm::value_ptr(material_diffuse));
 
 		// Render current normals
 		glBindVertexArray(current_mesh->normals.vao);
