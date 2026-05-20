@@ -53,6 +53,17 @@ struct BezierCurve
 	T position(double t) const;
 
 	/**
+	 * @brief Compute curve tangent at parameter @p t.
+	 *
+	 * The tangent is the first derivative dp/dt of the curve.
+	 * The result is not normalised.
+	 *
+	 * @param t Curve parameter in [0, 1]
+	 * @return Tangent vector at @p t
+	 */
+	T tangent(double t) const;
+
+	/**
 	 * @brief Compute curve normal at parameter @p t.
 	 *
 	 * The normal is the tangent vector rotated 90 degrees counter-clockwise.
@@ -72,8 +83,9 @@ struct BezierCurve
 	 *
 	 * @tparam VertexType 2D vertex type with a @p .position member assignable
 	 *                    from T. Optional @p .normal member is assigned from T
-	 *                    when present. Optional @p .texcoord is assigned from
-	 *                    sample point t when present.
+	 *                    when present. Optional @p .tangent member is assigned
+	 *                    from T when present. Optional @p .texcoord member is
+	 *                    assigned from sample point t when present.
 	 * @tparam IndexType Integer type suitable for array indices.
 	 *
 	 * @param t_count Number of sample points. Must be >= 2.
@@ -124,6 +136,30 @@ struct BezierSurface
 	T position(double u, double v) const;
 
 	/**
+	 * @brief Compute surface tangent at parameters (@p u, @p v).
+	 *
+	 * The tangent is the partial derivative dp/du along the u direction.
+	 * The result is not normalised.
+	 *
+	 * @param u Surface parameter in [0, 1] along the n-degree direction
+	 * @param v Surface parameter in [0, 1] along the m-degree direction
+	 * @return Tangent vector at (@p u, @p v)
+	 */
+	T tangent(double u, double v) const;
+
+	/**
+	 * @brief Compute surface bitangent at parameters (@p u, @p v).
+	 *
+	 * The bitangent is the partial derivative dp/dv along the v direction.
+	 * The result is not normalised.
+	 *
+	 * @param u Surface parameter in [0, 1] along the n-degree direction
+	 * @param v Surface parameter in [0, 1] along the m-degree direction
+	 * @return Bitangent vector at (@p u, @p v)
+	 */
+	T bitangent(double u, double v) const;
+
+	/**
 	 * @brief Compute surface normal at parameters (@p u, @p v).
 	 *
 	 * The normal is the cross product of the partial tangents dp/du x dp/dv.
@@ -144,8 +180,11 @@ struct BezierSurface
 	 *
 	 * @tparam VertexType 3D vertex type with a @p .position member assignable
 	 *                    from T. Optional @p .normal member is assigned from T
-	 *                    when present. Optional @p .texcoord is assigned from
-	 *                    sample point (u, v) when present.
+	 *                    when present. Optional @p .tangent member is assigned
+	 *                    from T when present. Optional @p .bitangent member is
+	 *                    assigned from T when present. Optional @p .texcoord
+	 *                    member is assigned from sample point (u, v) when
+	 *                    present.
 	 * @tparam IndexType Integer type suitable for array indices.
 	 *
 	 * @param u_count Number of sample points along u. Must be >= 2.

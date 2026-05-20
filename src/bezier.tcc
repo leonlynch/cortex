@@ -107,9 +107,15 @@ T BezierCurve<T,n>::position(double t) const
 }
 
 template <typename T, std::size_t n>
+T BezierCurve<T,n>::tangent(double t) const
+{
+	return detail::Bezier<T,n>::tangent(k, t);
+}
+
+template <typename T, std::size_t n>
 T BezierCurve<T,n>::normal(double t) const
 {
-	T dt = detail::Bezier<T,n>::tangent(k, t);
+	T dt = tangent(t);
 
 	// Rotate 90deg counter-clockwise
 	return T(-dt[1], dt[0]);
@@ -133,6 +139,9 @@ void BezierCurve<T,n>::tessellate(std::size_t t_count, std::vector<VertexType>& 
 		vertex.position = position(t);
 		if constexpr (detail::has_normal<VertexType>::value) {
 			vertex.normal = normal(t);
+		}
+		if constexpr (detail::has_tangent<VertexType>::value) {
+			vertex.tangent = tangent(t);
 		}
 		if constexpr (detail::has_texcoord<VertexType>::value) {
 			vertex.texcoord = detail::make_texcoord<decltype(vertex.texcoord)>(t);
@@ -167,14 +176,21 @@ T BezierSurface<T,n,m>::position(double u, double v) const
 }
 
 template <typename T, std::size_t n, std::size_t m>
-T BezierSurface<T,n,m>::normal(double u, double v) const
+T BezierSurface<T,n,m>::tangent(double u, double v) const
 {
 	ControlPoint kn[n + 1];
-	ControlPoint km[m + 1];
 
 	// Evaluate curves in direction m/v to obtain intermediate control points in direction n/u
 	for (std::size_t i = 0; i < n + 1; ++i)
 		kn[i] = detail::Bezier<T,m>::position(k[i], v);
+
+	return detail::Bezier<T,n>::tangent(kn, u);
+}
+
+template <typename T, std::size_t n, std::size_t m>
+T BezierSurface<T,n,m>::bitangent(double u, double v) const
+{
+	ControlPoint km[m + 1];
 
 	// Evaluate curves in direction n/u to obtain intermediate control points in direction m/v
 	for (std::size_t i = 0; i < m + 1; ++i) {
@@ -186,8 +202,14 @@ T BezierSurface<T,n,m>::normal(double u, double v) const
 		km[i] = detail::Bezier<T,n>::position(kmn, u);
 	}
 
-	T du = detail::Bezier<T, n>::tangent(kn, u);
-	T dv = detail::Bezier<T, m>::tangent(km, v);
+	return detail::Bezier<T,m>::tangent(km, v);
+}
+
+template <typename T, std::size_t n, std::size_t m>
+T BezierSurface<T,n,m>::normal(double u, double v) const
+{
+	T du = tangent(u, v);
+	T dv = bitangent(u, v);
 
 	// Cross product
 	return T(
@@ -217,6 +239,12 @@ void BezierSurface<T,n,m>::tessellate(std::size_t u_count, std::size_t v_count, 
 			vertex.position = position(u, v);
 			if constexpr (detail::has_normal<VertexType>::value) {
 				vertex.normal = normal(u, v);
+			}
+			if constexpr (detail::has_tangent<VertexType>::value) {
+				vertex.tangent = tangent(u, v);
+			}
+			if constexpr (detail::has_bitangent<VertexType>::value) {
+				vertex.bitangent = bitangent(u, v);
 			}
 			if constexpr (detail::has_texcoord<VertexType>::value) {
 				using S = typename decltype(vertex.texcoord)::value_type;

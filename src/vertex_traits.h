@@ -38,6 +38,64 @@ struct has_value_type<T, std::void_t<typename T::value_type>> : std::true_type {
 /// @}
 
 /**
+ * @brief Trait detecting whether @p T provides a @c .tangent data member.
+ *
+ * Intended for use with @c if @c constexpr (C++17) to populate the @c .tangent
+ * member conditionally if present.
+ *
+ * @tparam T Template type to inspect.
+ *
+ * @par Example
+ * @code
+ * struct vertex_with_tangent_t { glm::vec3 position; glm::vec3 tangent; };
+ * struct vertex_without_tangent_t { glm::vec3 position; };
+ *
+ * static_assert(detail::has_tangent<vertex_with_tangent_t>::value);
+ * static_assert(!detail::has_tangent<vertex_without_tangent_t>::value);
+ *
+ * // Conditional assignment:
+ * if constexpr (detail::has_tangent<T>::value) {
+ *     v.tangent = { ... };
+ * }
+ * @endcode
+ * @{
+ */
+template<typename T, typename = void>
+struct has_tangent : std::false_type {};
+template<typename T>
+struct has_tangent<T, std::void_t<decltype(std::declval<T&>().tangent)>> : std::true_type {};
+/// @}
+
+/**
+ * @brief Trait detecting whether @p T provides a @c .bitangent data member.
+ *
+ * Intended for use with @c if @c constexpr (C++17) to populate the @c .bitangent
+ * member conditionally if present.
+ *
+ * @tparam T Template type to inspect.
+ *
+ * @par Example
+ * @code
+ * struct vertex_with_bitangent_t { glm::vec3 position; glm::vec3 bitangent; };
+ * struct vertex_without_bitangent_t { glm::vec3 position; };
+ *
+ * static_assert(detail::has_bitangent<vertex_with_bitangent_t>::value);
+ * static_assert(!detail::has_bitangent<vertex_without_bitangent_t>::value);
+ *
+ * // Conditional assignment:
+ * if constexpr (detail::has_bitangent<T>::value) {
+ *     v.bitangent = { ... };
+ * }
+ * @endcode
+ * @{
+ */
+template<typename T, typename = void>
+struct has_bitangent : std::false_type {};
+template<typename T>
+struct has_bitangent<T, std::void_t<decltype(std::declval<T&>().bitangent)>> : std::true_type {};
+/// @}
+
+/**
  * @brief Trait detecting whether @p T provides a @c .normal data member.
  *
  * Intended for use with @c if @c constexpr (C++17) to populate the @c .normal

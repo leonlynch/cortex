@@ -41,6 +41,23 @@ struct vertex_with_scalar_texcoord_t
 	typename T::value_type texcoord;
 };
 
+template <typename T>
+struct vertex_with_tangent_t
+{
+	T position;
+	T normal;
+	T tangent;
+};
+
+template <typename T>
+struct vertex_with_tangent_bitangent_t
+{
+	T position;
+	T normal;
+	T tangent;
+	T bitangent;
+};
+
 template<glm::length_t N, typename T, glm::qualifier Q>
 std::ostream& operator<< (std::ostream& os, const glm::vec<N, T, Q>& v)
 {
@@ -64,6 +81,8 @@ void print_bezier_eval(const BezierCurve<T,n>& bc, std::size_t t_count)
 
 	for (auto&& vertex : vertices) {
 		std::cout << "p: " << vertex.position << "; n: " << vertex.normal;
+		if constexpr (detail::has_tangent<VertexType>::value)
+			std::cout << "; tan: " << vertex.tangent;
 		if constexpr (detail::has_texcoord<VertexType>::value)
 			std::cout << "; t: " << vertex.texcoord;
 		std::cout << "\n";
@@ -84,6 +103,10 @@ void print_bezier_eval(const BezierSurface<T,n,m>& bs, std::size_t u_count, std:
 
 	for (auto&& vertex : vertices) {
 		std::cout << "p: " << vertex.position << "; n: " << vertex.normal;
+		if constexpr (detail::has_tangent<VertexType>::value)
+			std::cout << "; tan: " << vertex.tangent;
+		if constexpr (detail::has_bitangent<VertexType>::value)
+			std::cout << "; bitan: " << vertex.bitangent;
 		if constexpr (detail::has_texcoord<VertexType>::value)
 			std::cout << "; uv: " << vertex.texcoord;
 		std::cout << "\n";
@@ -120,6 +143,11 @@ int main(void)
 	print_bezier_eval<vertex_with_scalar_texcoord_t<glm::vec2>>(bc_vec2, 6);
 	std::cout << "\n";
 
+	printf("Test BezierCurve with tangent...\n");
+	std::cout << "k: " << bc_vec2 << "\n";
+	print_bezier_eval<vertex_with_tangent_t<glm::vec2>>(bc_vec2, 6);
+	std::cout << "\n";
+
 	glm::vec3 bs_k[4][4] = {
 		{ { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.25f, 0.0f }, { 0.0f, 0.75f, 0.0f }, { 0.0f, 1.0f, 0.0f }, },
 		{ { 0.25f, 0.0f, 0.0f }, { 0.25f, 0.25f, 0.25f }, { 0.25f, 0.75f, 0.25f }, { 0.25f, 1.0f, 0.0f }, },
@@ -138,5 +166,17 @@ int main(void)
 	std::cout << "k: \n" << bs_vec3 << "\n";
 	using VertexWithTexcoord = vertex_with_texcoord_t<glm::vec3>;
 	print_bezier_eval<VertexWithTexcoord>(bs_vec3, 6, 6);
+	std::cout << "\n";
+
+	printf("Test BezierSurface with tangent...\n");
+	std::cout << "k: \n" << bs_vec3 << "\n";
+	using VertexWithTangent = vertex_with_tangent_t<glm::vec3>;
+	print_bezier_eval<VertexWithTangent>(bs_vec3, 6, 6);
+	std::cout << "\n";
+
+	printf("Test BezierSurface with tangent and bitangent...\n");
+	std::cout << "k: \n" << bs_vec3 << "\n";
+	using VertexWithTangentBitangent = vertex_with_tangent_bitangent_t<glm::vec3>;
+	print_bezier_eval<VertexWithTangentBitangent>(bs_vec3, 6, 6);
 	std::cout << "\n";
 }
