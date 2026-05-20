@@ -25,47 +25,52 @@ void Cube::tessellate(std::vector<VertexType>& vertices, std::vector<IndexType>&
 
 	std::size_t offset = vertices.size();
 
-	struct raw_vertex_with_normal_t {
+	struct raw_vertex_t {
 		float position[3];
 		float normal[3];
+		float texcoord[2];
 	};
-	static const raw_vertex_with_normal_t raw_vertices[] = {
-		// Front (+Z)
-		{ {  1.0f,  1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f } },
-		{ { -1.0f,  1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f } },
-		{ { -1.0f, -1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f } },
-		{ {  1.0f, -1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f } },
-		// Back (-Z)
-		{ { -1.0f,  1.0f, -1.0f }, {  0.0f,  0.0f, -1.0f } },
-		{ {  1.0f,  1.0f, -1.0f }, {  0.0f,  0.0f, -1.0f } },
-		{ {  1.0f, -1.0f, -1.0f }, {  0.0f,  0.0f, -1.0f } },
-		{ { -1.0f, -1.0f, -1.0f }, {  0.0f,  0.0f, -1.0f } },
-		// Right (+X)
-		{ {  1.0f,  1.0f, -1.0f }, {  1.0f,  0.0f,  0.0f } },
-		{ {  1.0f,  1.0f,  1.0f }, {  1.0f,  0.0f,  0.0f } },
-		{ {  1.0f, -1.0f,  1.0f }, {  1.0f,  0.0f,  0.0f } },
-		{ {  1.0f, -1.0f, -1.0f }, {  1.0f,  0.0f,  0.0f } },
-		// Left (-X)
-		{ { -1.0f,  1.0f,  1.0f }, { -1.0f,  0.0f,  0.0f } },
-		{ { -1.0f,  1.0f, -1.0f }, { -1.0f,  0.0f,  0.0f } },
-		{ { -1.0f, -1.0f, -1.0f }, { -1.0f,  0.0f,  0.0f } },
-		{ { -1.0f, -1.0f,  1.0f }, { -1.0f,  0.0f,  0.0f } },
-		// Top (+Y)
-		{ {  1.0f,  1.0f, -1.0f }, {  0.0f,  1.0f,  0.0f } },
-		{ { -1.0f,  1.0f, -1.0f }, {  0.0f,  1.0f,  0.0f } },
-		{ { -1.0f,  1.0f,  1.0f }, {  0.0f,  1.0f,  0.0f } },
-		{ {  1.0f,  1.0f,  1.0f }, {  0.0f,  1.0f,  0.0f } },
-		// Bottom (-Y)
-		{ {  1.0f, -1.0f,  1.0f }, {  0.0f, -1.0f,  0.0f } },
-		{ { -1.0f, -1.0f,  1.0f }, {  0.0f, -1.0f,  0.0f } },
-		{ { -1.0f, -1.0f, -1.0f }, {  0.0f, -1.0f,  0.0f } },
-		{ {  1.0f, -1.0f, -1.0f }, {  0.0f, -1.0f,  0.0f } },
+	static const raw_vertex_t raw_vertices[] = {
+		// Front (+Z): u=(x+1)/2, v=(y+1)/2
+		{ {  1.0f,  1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f }, { 1.0f, 1.0f } },
+		{ { -1.0f,  1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 1.0f } },
+		{ { -1.0f, -1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 0.0f } },
+		{ {  1.0f, -1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f }, { 1.0f, 0.0f } },
+		// Back (-Z): u=(1-x)/2, v=(y+1)/2
+		{ { -1.0f,  1.0f, -1.0f }, {  0.0f,  0.0f, -1.0f }, { 1.0f, 1.0f } },
+		{ {  1.0f,  1.0f, -1.0f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 1.0f } },
+		{ {  1.0f, -1.0f, -1.0f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 0.0f } },
+		{ { -1.0f, -1.0f, -1.0f }, {  0.0f,  0.0f, -1.0f }, { 1.0f, 0.0f } },
+		// Right (+X): u=(1-z)/2, v=(y+1)/2
+		{ {  1.0f,  1.0f, -1.0f }, {  1.0f,  0.0f,  0.0f }, { 1.0f, 1.0f } },
+		{ {  1.0f,  1.0f,  1.0f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 1.0f } },
+		{ {  1.0f, -1.0f,  1.0f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
+		{ {  1.0f, -1.0f, -1.0f }, {  1.0f,  0.0f,  0.0f }, { 1.0f, 0.0f } },
+		// Left (-X): u=(z+1)/2, v=(y+1)/2
+		{ { -1.0f,  1.0f,  1.0f }, { -1.0f,  0.0f,  0.0f }, { 1.0f, 1.0f } },
+		{ { -1.0f,  1.0f, -1.0f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 1.0f } },
+		{ { -1.0f, -1.0f, -1.0f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
+		{ { -1.0f, -1.0f,  1.0f }, { -1.0f,  0.0f,  0.0f }, { 1.0f, 0.0f } },
+		// Top (+Y): u=(x+1)/2, v=(1-z)/2
+		{ {  1.0f,  1.0f, -1.0f }, {  0.0f,  1.0f,  0.0f }, { 1.0f, 1.0f } },
+		{ { -1.0f,  1.0f, -1.0f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 1.0f } },
+		{ { -1.0f,  1.0f,  1.0f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 0.0f } },
+		{ {  1.0f,  1.0f,  1.0f }, {  0.0f,  1.0f,  0.0f }, { 1.0f, 0.0f } },
+		// Bottom (-Y): u=(x+1)/2, v=(z+1)/2
+		{ {  1.0f, -1.0f,  1.0f }, {  0.0f, -1.0f,  0.0f }, { 1.0f, 1.0f } },
+		{ { -1.0f, -1.0f,  1.0f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 1.0f } },
+		{ { -1.0f, -1.0f, -1.0f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 0.0f } },
+		{ {  1.0f, -1.0f, -1.0f }, {  0.0f, -1.0f,  0.0f }, { 1.0f, 0.0f } },
 	};
 	for (const auto& rv : raw_vertices) {
 		VertexType v{};
 		v.position = { rv.position[0], rv.position[1], rv.position[2] };
 		if constexpr (detail::has_normal<VertexType>::value) {
 			v.normal = { rv.normal[0], rv.normal[1], rv.normal[2] };
+		}
+		if constexpr (detail::has_texcoord<VertexType>::value) {
+			using S = typename decltype(v.texcoord)::value_type;
+			v.texcoord = { static_cast<S>(rv.texcoord[0]), static_cast<S>(rv.texcoord[1]) };
 		}
 		vertices.push_back(v);
 	}

@@ -29,7 +29,9 @@ struct Cube
 	 *
 	 * @tparam VertexType 3D vertex type with a @p .position member assignable
 	 *                    from three floats. An optional @p .normal member is
-	 *                    assigned from three floats when present.
+	 *                    assigned from three floats when present. An optional
+	 *                    @p .texcoord member is assigned from two floats when
+	 *                    present.
 	 * @tparam IndexType Integer type suitable for array indices.
 	 *
 	 * @param vertices Vertex buffer output. New vertices are appended.
