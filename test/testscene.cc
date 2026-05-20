@@ -224,15 +224,12 @@ static int scene_read_shader(const std::string& filename, std::string& source)
 		return -1;
 	}
 
-	char buf[st.st_size + 1];
-
-	r = fread(buf, st.st_size, 1, f);
+	source.resize(st.st_size);
+	r = fread(source.data(), st.st_size, 1, f);
 	if (r != 1) {
 		fprintf(stderr, "Failed to read %s\n", filename.c_str());
 		goto error;
 	}
-	buf[st.st_size] = 0;
-	source = buf;
 
 	r = 0;
 	goto exit;
@@ -252,7 +249,7 @@ static GLuint scene_load_shader(const std::string& filename, GLenum shader_type)
 	GLuint shader;
 	const char* source_ptr;
 	GLint info_log_len = 0;
-	std::vector<GLchar> info_log;
+	std::string info_log;
 	GLint compile_status = GL_FALSE;
 
 	r = scene_read_shader(filename, source);
@@ -284,9 +281,9 @@ static GLuint scene_load_shader(const std::string& filename, GLenum shader_type)
 
 		GLint shader_source_len;
 		glGetShaderiv(shader, GL_SHADER_SOURCE_LENGTH, &shader_source_len);
-		GLchar shader_source[shader_source_len];
-		glGetShaderSource(shader, sizeof(shader_source), NULL, shader_source);
-		fprintf(stderr, "%s\n", shader_source);
+		std::string shader_source(shader_source_len, 0);
+		glGetShaderSource(shader, shader_source.size(), NULL, shader_source.data());
+		fprintf(stderr, "%s\n", shader_source.data());
 
 		if (!info_log.empty()) {
 			fprintf(stderr, "%s: %s\n", filename.c_str(), info_log.data());
@@ -315,7 +312,7 @@ static int scene_load_shader_program(const std::string& vertex_shader_file, cons
 	GLint link_status = GL_FALSE;
 	GLint validate_status = GL_FALSE;
 	GLint info_log_len;
-	std::vector<GLchar> info_log;
+	std::string info_log;
 	GLint uniform_count;
 	GLint uniform_max_length;
 	GLint attribute_count;
@@ -389,12 +386,12 @@ static int scene_load_shader_program(const std::string& vertex_shader_file, cons
 	glGetProgramiv(shader_program->program, GL_ACTIVE_UNIFORMS, &uniform_count);
 	glGetProgramiv(shader_program->program, GL_ACTIVE_UNIFORM_MAX_LENGTH, &uniform_max_length);
 	for (int i = 0; i < uniform_count; ++i) {
-		GLchar uniform_name[uniform_max_length];
+		std::string uniform_name(uniform_max_length, 0);
 		GLint uniform_size = 0;
 		GLenum uniform_type = 0;
-		glGetActiveUniform(shader_program->program, i, sizeof(uniform_name), NULL, &uniform_size, &uniform_type, uniform_name);
-		shader_program->uniform_location[uniform_name] = glGetUniformLocation(shader_program->program, uniform_name);
-		printf("%s(); uniform='%s'; size=%d; type=%d; location=%d\n", __FUNCTION__, uniform_name, uniform_size, uniform_type, shader_program->uniform_location[uniform_name]);
+		glGetActiveUniform(shader_program->program, i, uniform_name.size(), NULL, &uniform_size, &uniform_type, uniform_name.data());
+		shader_program->uniform_location[uniform_name.data()] = glGetUniformLocation(shader_program->program, uniform_name.data());
+		printf("%s(); uniform='%s'; size=%d; type=%d; location=%d\n", __FUNCTION__, uniform_name.data(), uniform_size, uniform_type, shader_program->uniform_location[uniform_name.data()]);
 	}
 
 	// Lookup all attributes
@@ -403,12 +400,12 @@ static int scene_load_shader_program(const std::string& vertex_shader_file, cons
 	glGetProgramiv(shader_program->program, GL_ACTIVE_ATTRIBUTES, &attribute_count);
 	glGetProgramiv(shader_program->program, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, &attribute_max_length);
 	for (int i = 0; i < attribute_count; ++i) {
-		GLchar attribute_name[attribute_max_length];
+		std::string attribute_name(attribute_max_length, 0);
 		GLint attribute_size = 0;
 		GLenum attribute_type = 0;
-		glGetActiveAttrib(shader_program->program, i, sizeof(attribute_name), NULL, &attribute_size, &attribute_type, attribute_name);
-		shader_program->attribute_location[attribute_name] = glGetAttribLocation(shader_program->program, attribute_name);
-		printf("%s(); attribute='%s'; size=%d; type=%d; location=%d\n", __FUNCTION__, attribute_name, attribute_size, attribute_type, shader_program->attribute_location[attribute_name]);
+		glGetActiveAttrib(shader_program->program, i, attribute_name.size(), NULL, &attribute_size, &attribute_type, attribute_name.data());
+		shader_program->attribute_location[attribute_name.data()] = glGetAttribLocation(shader_program->program, attribute_name.data());
+		printf("%s(); attribute='%s'; size=%d; type=%d; location=%d\n", __FUNCTION__, attribute_name.data(), attribute_size, attribute_type, shader_program->attribute_location[attribute_name.data()]);
 	}
 
 	// Lookup fragment output
