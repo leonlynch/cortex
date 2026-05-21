@@ -15,7 +15,6 @@
 #include <string>
 #include <map>
 #include <vector>
-#include <type_traits>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -54,6 +53,8 @@ struct shader_program_t {
 
 	GLint uniform(const std::string& name) const { return uniform_location.at(name); }
 	GLint attribute(const std::string& name) const { return attribute_location.at(name); }
+	bool has_attribute(const std::string& name) const { return attribute_location.count(name) > 0; }
+
 };
 
 struct vertex_t {
@@ -137,8 +138,17 @@ static std::vector<unsigned int> sphere_indices;
 static mesh_t sphere_mesh;
 
 // Helper function declarations
-static void scene_update_mesh(const std::vector<vertex_t>& vertices, const std::vector<unsigned int>& indices, mesh_t* mesh);
-static void scene_update_mesh_normals(const std::vector<vertex_t>& vertices, normals_t* normals);
+template<typename VertexType>
+static void scene_update_mesh(
+	const std::vector<VertexType>& vertices,
+	const std::vector<unsigned int>& indices,
+	mesh_t* mesh
+);
+template<typename VertexType>
+static void scene_update_mesh_normals(
+	const std::vector<VertexType>& vertices,
+	normals_t* normals
+);
 static void scene_unload_shader_program(shader_program_t* shader_program);
 
 
@@ -422,10 +432,15 @@ exit:
 	return r;
 }
 
-static void scene_load_mesh(const std::vector<vertex_t>& vertices, const std::vector<unsigned int>& indices, const shader_program_t* shader, mesh_t* mesh)
+template<typename VertexType>
+static void scene_load_mesh(
+	const std::vector<VertexType>& vertices,
+	const std::vector<unsigned int>& indices,
+	const shader_program_t* shader,
+	mesh_t* mesh)
 {
 	// VAO layout:
-	// - VBO #0 for position and normal data (interleaved)
+	// - VBO #0 for interleaved vertex data (position, normal, texcoord)
 	// - IBO for element indexes
 
 	// Create vertex array object and vertex/index buffer objects
@@ -434,20 +449,34 @@ static void scene_load_mesh(const std::vector<vertex_t>& vertices, const std::ve
 	glCreateBuffers(1, &mesh->ibo);
 
 	// Bind buffer objects to vertex array object
-	glVertexArrayVertexBuffer(mesh->vao, mesh->vbo_binding, mesh->vbo, 0, sizeof(struct vertex_t));
+	glVertexArrayVertexBuffer(mesh->vao, mesh->vbo_binding, mesh->vbo, 0, sizeof(VertexType));
 	glVertexArrayElementBuffer(mesh->vao, mesh->ibo);
 
-	// Setup format and binding for vertex data
+	// Setup format and binding for vertex position
 	GLuint pos_loc = shader->attribute("v_position");
 	glEnableVertexArrayAttrib(mesh->vao, pos_loc);
 	glVertexArrayAttribBinding(mesh->vao, pos_loc, mesh->vbo_binding);
 	glVertexArrayAttribFormat(mesh->vao, pos_loc, 3, GL_FLOAT, GL_FALSE, 0);
 
-	// Setup format and binding for normal data
-	GLuint norm_loc = shader->attribute("v_normal");
-	glEnableVertexArrayAttrib(mesh->vao, norm_loc);
-	glVertexArrayAttribBinding(mesh->vao, norm_loc, mesh->vbo_binding);
-	glVertexArrayAttribFormat(mesh->vao, norm_loc, 3, GL_FLOAT, GL_FALSE, offsetof(struct vertex_t, normal));
+	// Setup format and binding for vertex normal
+	if constexpr (detail::has_normal<VertexType>::value) {
+		if (shader->has_attribute("v_normal")) {
+			GLuint norm_loc = shader->attribute("v_normal");
+			glEnableVertexArrayAttrib(mesh->vao, norm_loc);
+			glVertexArrayAttribBinding(mesh->vao, norm_loc, mesh->vbo_binding);
+			glVertexArrayAttribFormat(mesh->vao, norm_loc, 3, GL_FLOAT, GL_FALSE, offsetof(VertexType, normal));
+		}
+	}
+
+	// Setup format and binding for texture coordinates
+	if constexpr (detail::has_texcoord<VertexType>::value) {
+		if (shader->has_attribute("v_texcoord")) {
+			GLuint tc_loc = shader->attribute("v_texcoord");
+			glEnableVertexArrayAttrib(mesh->vao, tc_loc);
+			glVertexArrayAttribBinding(mesh->vao, tc_loc, mesh->vbo_binding);
+			glVertexArrayAttribFormat(mesh->vao, tc_loc, 2, GL_FLOAT, GL_FALSE, offsetof(VertexType, texcoord));
+		}
+	}
 
 	mesh->shader = shader;
 
@@ -455,23 +484,29 @@ static void scene_load_mesh(const std::vector<vertex_t>& vertices, const std::ve
 	scene_update_mesh(vertices, indices, mesh);
 }
 
-static void scene_update_mesh(const std::vector<vertex_t>& vertices, const std::vector<unsigned int>& indices, mesh_t* mesh)
+template<typename VertexType>
+static void scene_update_mesh(
+	const std::vector<VertexType>& vertices,
+	const std::vector<unsigned int>& indices,
+	mesh_t* mesh)
 {
-	using vertex_type = std::remove_reference<decltype(vertices)>::type::value_type;
-	using index_type = std::remove_reference<decltype(indices)>::type::value_type;
-
 	// Update existing vertex buffer object
-	glNamedBufferData(mesh->vbo, vertices.size() * sizeof(vertex_type), vertices.data(), GL_DYNAMIC_DRAW);
+	glNamedBufferData(mesh->vbo, vertices.size() * sizeof(VertexType), vertices.data(), GL_DYNAMIC_DRAW);
 	mesh->vertex_count = vertices.size();
 
 	// Update existing index buffer object
-	glNamedBufferData(mesh->ibo, indices.size() * sizeof(index_type), indices.data(), GL_DYNAMIC_DRAW);
+	glNamedBufferData(mesh->ibo, indices.size() * sizeof(unsigned int), indices.data(), GL_DYNAMIC_DRAW);
 	mesh->index_count = indices.size();
 
 	printf("%s(); vao=%u; vbo=%u[%zu]; ibo=%u[%zu]\n", __FUNCTION__, mesh->vao, mesh->vbo, vertices.size(), mesh->ibo, indices.size());
 }
 
-static void scene_load_mesh_normals(const std::vector<vertex_t>& vertices, const shader_program_t* shader, normals_t* normals)
+template<typename VertexType>
+static void scene_load_mesh_normals(
+	const std::vector<VertexType>& vertices,
+	const shader_program_t* shader,
+	normals_t* normals
+)
 {
 	// VAO layout:
 	// - VBO #0 for position
@@ -494,7 +529,11 @@ static void scene_load_mesh_normals(const std::vector<vertex_t>& vertices, const
 	scene_update_mesh_normals(vertices, normals);
 }
 
-static void scene_update_mesh_normals(const std::vector<vertex_t>& vertices, normals_t* normals)
+template<typename VertexType>
+static void scene_update_mesh_normals(
+	const std::vector<VertexType>& vertices,
+	normals_t* normals
+)
 {
 	// Generate vertices representing normal lines
 	using line_type = std::pair<glm::vec3,glm::vec3>;
