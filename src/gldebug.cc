@@ -9,6 +9,7 @@
 
 #include "gldebug.h"
 
+#include <cstdarg>
 #include <cstdio>
 
 #define ANSI_FG_RED     "\x1b[31m"
@@ -207,7 +208,7 @@ static const char* gldebug_glsl_type_str(GLenum type)
 	}
 }
 
-void cortex_gldebug(
+void cortex_gldebug_callback(
 	GLenum source,
 	GLenum type,
 	GLuint id,
@@ -219,13 +220,26 @@ void cortex_gldebug(
 {
 	(void)length;
 	(void)userParam;
-	fprintf(stderr, "%s[GL|%s|%s|%u]: %s\n" ANSI_RESET,
+	printf("%s[GL|%s|%s|%u]: %s\n" ANSI_RESET,
 		gldebug_severity_str(severity),
 		gldebug_source_str(source),
 		gldebug_type_str(type),
 		id,
 		message
 	);
+}
+
+void cortex_gldebug_log(GLenum severity, const char* fmt, ...)
+{
+	va_list ap;
+	va_start(ap, fmt);
+	printf("%s[GL|%s]: ",
+		gldebug_severity_str(severity),
+		gldebug_source_str(GL_DEBUG_SOURCE_APPLICATION)
+	);
+	vprintf(fmt, ap);
+	printf("\n" ANSI_RESET);
+	va_end(ap);
 }
 
 void cortex_gldebug_uniform(

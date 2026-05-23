@@ -12,7 +12,7 @@
 
 #include <GL/glew.h>
 
-void cortex_gldebug(
+void cortex_gldebug_callback(
 	GLenum source,
 	GLenum type,
 	GLuint id,
@@ -21,6 +21,23 @@ void cortex_gldebug(
 	const GLchar* message,
 	const void* userParam
 );
+
+void cortex_gldebug_log(
+	GLenum severity,
+	const char* fmt, ...
+) __attribute__((format(printf, 2, 3)));
+
+template<typename... Args>
+static inline void cortex_gldebug_msg(const char* fmt, Args... args)
+{
+	cortex_gldebug_log(GL_DEBUG_SEVERITY_NOTIFICATION, fmt, args...);
+}
+
+template<typename... Args>
+static inline void cortex_gldebug_error(const char* fmt, Args... args)
+{
+	cortex_gldebug_log(GL_DEBUG_SEVERITY_HIGH, fmt, args...);
+}
 
 void cortex_gldebug_uniform(
 	GLenum severity,

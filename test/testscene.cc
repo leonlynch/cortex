@@ -194,7 +194,7 @@ int scene_init(void)
 	}
 
 	// Debugging
-	glDebugMessageCallback(&cortex_gldebug, NULL);
+	glDebugMessageCallback(&cortex_gldebug_callback, NULL);
 	glEnable(GL_DEBUG_OUTPUT);
 	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 	std::printf("Debug enabled\n");
@@ -334,6 +334,11 @@ static int scene_load_shader_program(const std::string& vertex_shader_file, cons
 	GLint output_count;
 	GLint output_max_length;
 
+	cortex_gldebug_msg("Loading shader program: %s; %s",
+		vertex_shader_file.c_str(),
+		fragment_shader_file.c_str()
+	);
+
 	shader_program->program = glCreateProgram();
 	if (!shader_program->program) {
 		fprintf(stderr, "glCreateProgram() failed\n");
@@ -441,6 +446,8 @@ static int scene_load_shader_program(const std::string& vertex_shader_file, cons
 		shader_program->fragdata_location[output_name.data()] = output_location;
 		cortex_gldebug_fragdata(output_name.data(), output_values[1], static_cast<GLenum>(output_values[0]), output_location);
 	}
+
+	cortex_gldebug_msg("Shader program %u loaded", shader_program->program);
 
 	r = 0;
 	goto exit;
