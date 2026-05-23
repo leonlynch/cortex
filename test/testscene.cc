@@ -49,12 +49,16 @@ struct shader_program_t {
 	GLuint fragment_shader = 0;
 	std::map<std::string, GLint> uniform_location;
 	std::map<std::string, GLint> attribute_location;
-	GLint fragdata_location = 0;
+	std::map<std::string, GLint> fragdata_location;
 
 	GLint uniform(const std::string& name) const { return uniform_location.at(name); }
+	bool has_uniform(const std::string& name) const { return uniform_location.count(name) > 0; }
+
 	GLint attribute(const std::string& name) const { return attribute_location.at(name); }
 	bool has_attribute(const std::string& name) const { return attribute_location.count(name) > 0; }
 
+	GLint fragdata(const std::string& name) const { return fragdata_location.at(name); }
+	bool has_fragdata(const std::string& name) const { return fragdata_location.count(name) > 0; }
 };
 
 struct vertex_t {
@@ -327,6 +331,8 @@ static int scene_load_shader_program(const std::string& vertex_shader_file, cons
 	GLint uniform_max_length;
 	GLint attribute_count;
 	GLint attribute_max_length;
+	GLint output_count;
+	GLint output_max_length;
 
 	shader_program->program = glCreateProgram();
 	if (!shader_program->program) {
@@ -401,7 +407,7 @@ static int scene_load_shader_program(const std::string& vertex_shader_file, cons
 		GLenum uniform_type = 0;
 		glGetActiveUniform(shader_program->program, i, uniform_name.size(), NULL, &uniform_size, &uniform_type, uniform_name.data());
 		shader_program->uniform_location[uniform_name.data()] = glGetUniformLocation(shader_program->program, uniform_name.data());
-		printf("%s(); uniform='%s'; size=%d; type=%d; location=%d\n", __FUNCTION__, uniform_name.data(), uniform_size, uniform_type, shader_program->uniform_location[uniform_name.data()]);
+		cortex_gldebug_uniform(uniform_name.data(), uniform_size, uniform_type, shader_program->uniform_location[uniform_name.data()]);
 	}
 
 	// Lookup all attributes
@@ -415,12 +421,26 @@ static int scene_load_shader_program(const std::string& vertex_shader_file, cons
 		GLenum attribute_type = 0;
 		glGetActiveAttrib(shader_program->program, i, attribute_name.size(), NULL, &attribute_size, &attribute_type, attribute_name.data());
 		shader_program->attribute_location[attribute_name.data()] = glGetAttribLocation(shader_program->program, attribute_name.data());
-		printf("%s(); attribute='%s'; size=%d; type=%d; location=%d\n", __FUNCTION__, attribute_name.data(), attribute_size, attribute_type, shader_program->attribute_location[attribute_name.data()]);
+		cortex_gldebug_attribute(attribute_name.data(), attribute_size, attribute_type, shader_program->attribute_location[attribute_name.data()]);
 	}
 
-	// Lookup fragment output
-	shader_program->fragdata_location = glGetFragDataLocation(shader_program->program, "color");
-	printf("%s(); fragdata='%s'; location=%d\n", __FUNCTION__, "color", shader_program->fragdata_location);
+	// Lookup all program outputs
+	output_count = 0;
+	output_max_length = 0;
+	glGetProgramInterfaceiv(shader_program->program, GL_PROGRAM_OUTPUT, GL_ACTIVE_RESOURCES, &output_count);
+	glGetProgramInterfaceiv(shader_program->program, GL_PROGRAM_OUTPUT, GL_MAX_NAME_LENGTH, &output_max_length);
+	for (int i = 0; i < output_count; ++i) {
+		std::string output_name(output_max_length, 0);
+		GLsizei output_name_len = 0;
+		GLint output_location;
+		const GLenum output_props[] = { GL_TYPE, GL_ARRAY_SIZE };
+		GLint output_values[2] = { 0, 0 };
+		glGetProgramResourceName(shader_program->program, GL_PROGRAM_OUTPUT, i, output_name.size(), &output_name_len, output_name.data());
+		glGetProgramResourceiv(shader_program->program, GL_PROGRAM_OUTPUT, i, 2, output_props, 2, nullptr, output_values);
+		output_location = glGetProgramResourceLocation(shader_program->program, GL_PROGRAM_OUTPUT, output_name.data());
+		shader_program->fragdata_location[output_name.data()] = output_location;
+		cortex_gldebug_fragdata(output_name.data(), output_values[1], static_cast<GLenum>(output_values[0]), output_location);
+	}
 
 	r = 0;
 	goto exit;
