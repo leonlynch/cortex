@@ -12,6 +12,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 
@@ -235,6 +236,9 @@ int scene_init(void)
 	// Back face culling
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
+
+	// sRGB framebuffer output
+	glEnable(GL_FRAMEBUFFER_SRGB);
 
 	ready = true;
 
@@ -619,7 +623,7 @@ static void scene_update_mesh_normals(
 	printf("%s(); vao=%u; vbo=%u[%zu]\n", __FUNCTION__, normals->vao, normals->vbo, normal_lines.size());
 }
 
-static GLuint scene_load_texture(const std::string& filename)
+static GLuint scene_load_texture(const std::string& filename, GLenum internal_format)
 {
 	int width, height, channels;
 	unsigned char* data = stbi_load(filename.c_str(), &width, &height, &channels, STBI_rgb_alpha);
@@ -628,18 +632,26 @@ static GLuint scene_load_texture(const std::string& filename)
 		return 0;
 	}
 
+	GLint levels = 1 + static_cast<GLint>(std::floor(std::log2(width > height ? width : height)));
+
 	GLuint texture;
 	glCreateTextures(GL_TEXTURE_2D, 1, &texture);
-	glTextureStorage2D(texture, 1, GL_RGBA8, width, height);
+	glTextureStorage2D(texture, levels, internal_format, width, height);
 	glTextureSubImage2D(texture, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, data);
-	glTextureParameteri(texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glGenerateTextureMipmap(texture);
+	glTextureParameteri(texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTextureParameteri(texture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTextureParameteri(texture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
+	// Enable maximum anisotropic filtering supported by the hardware
+	GLfloat max_anisotropy;
+	glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &max_anisotropy);
+	glTextureParameterf(texture, GL_TEXTURE_MAX_ANISOTROPY, max_anisotropy);
+
 	stbi_image_free(data);
 
-	printf("%s(); tex=%u; %dx%d; channels=%d\n", __FUNCTION__, texture, width, height, channels);
+	printf("%s(); tex=%u; %dx%d; levels=%d; channels=%d\n", __FUNCTION__, texture, width, height, levels, channels);
 	return texture;
 }
 
@@ -666,11 +678,11 @@ int scene_load_resources(void)
 	scene_load_mesh_normals(cube_vertices, &textured_shader, &cube_mesh.normals);
 	cube_mesh.textures.push_back({
 		textured_shader.sampler_unit("material_diffuse"),
-		scene_load_texture("test/data/container2.png")
+		scene_load_texture("test/data/container2.png", GL_SRGB8_ALPHA8)
 	});
 	cube_mesh.textures.push_back({
 		textured_shader.sampler_unit("material_specular"),
-		scene_load_texture("test/data/container2_specular.png")
+		scene_load_texture("test/data/container2_specular.png", GL_RGBA8)
 	});
 
 	// Load octahedron mesh
