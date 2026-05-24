@@ -52,11 +52,21 @@ struct shader_program_t {
 	std::map<std::string, GLint> attribute_location;
 	std::map<std::string, GLint> fragdata_location;
 
+	struct sampler_info_t {
+		GLint location = -1;
+		GLint unit = -1;
+	};
+	std::map<std::string, sampler_info_t> sampler_info;
+
 	GLint uniform(const std::string& name) const { return uniform_location.at(name); }
 	bool has_uniform(const std::string& name) const { return uniform_location.count(name) > 0; }
 
 	GLint attribute(const std::string& name) const { return attribute_location.at(name); }
 	bool has_attribute(const std::string& name) const { return attribute_location.count(name) > 0; }
+
+	GLint sampler(const std::string& name) const { return sampler_info.at(name).location; }
+	GLuint sampler_unit(const std::string& name) const { return static_cast<GLuint>(sampler_info.at(name).unit); }
+	bool has_sampler(const std::string& name) const { return sampler_info.count(name) > 0; }
 
 	GLint fragdata(const std::string& name) const { return fragdata_location.at(name); }
 	bool has_fragdata(const std::string& name) const { return fragdata_location.count(name) > 0; }
@@ -414,12 +424,14 @@ static int scene_load_shader_program(const std::string& vertex_shader_file, cons
 		GLint uniform_location;
 		glGetActiveUniform(shader_program->program, i, uniform_name.size(), NULL, &uniform_size, &uniform_type, uniform_name.data());
 		uniform_location = glGetUniformLocation(shader_program->program, uniform_name.data());
-		shader_program->uniform_location[uniform_name.data()] = uniform_location;
+
 		if (glUniformTypeIsSampler(uniform_type)) {
 			GLint unit = 0;
 			glGetUniformiv(shader_program->program, uniform_location, &unit);
+			shader_program->sampler_info[uniform_name.data()] = { uniform_location, unit };
 			cortex_gldebug_sampler(uniform_name.data(), uniform_size, uniform_type, uniform_location, unit);
 		} else {
+			shader_program->uniform_location[uniform_name.data()] = uniform_location;
 			cortex_gldebug_uniform(uniform_name.data(), uniform_size, uniform_type, uniform_location);
 		}
 	}
