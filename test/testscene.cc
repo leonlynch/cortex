@@ -9,6 +9,9 @@
 
 #include "testscene.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 #include <cstdio>
 #include <cstring>
 
@@ -37,6 +40,7 @@
 #include "shape.h"
 #include "gldebug.h"
 #include "glhelpers.h"
+#include "vertex_traits.h"
 
 static bool ready = 0;
 static int width = 0;
@@ -77,12 +81,23 @@ struct vertex_t {
 	glm::vec3 normal;
 };
 
+struct textured_vertex_t {
+	glm::vec3 position;
+	glm::vec3 normal;
+	glm::vec2 texcoord;
+};
+
 struct normals_t {
 	GLuint vao = 0;
 
 	GLuint vbo = 0;
 	GLuint vbo_binding = 0;
 	GLsizei vertex_count = 0;
+};
+
+struct texture_unit_t {
+	GLuint unit = 0;
+	GLuint texture = 0;
 };
 
 struct mesh_t {
@@ -97,15 +112,18 @@ struct mesh_t {
 
 	normals_t normals;
 
+	std::vector<texture_unit_t> textures;
+
 	const shader_program_t* shader = nullptr;
 };
 
-// Shader program
-static shader_program_t default_shader;
+// Shader programs
+static shader_program_t simple_shader;
+static shader_program_t textured_shader;
 
 // Cube mesh
 static Cube cube;
-static std::vector<vertex_t> cube_vertices;
+static std::vector<textured_vertex_t> cube_vertices;
 static std::vector<unsigned int> cube_indices;
 static mesh_t cube_mesh;
 
@@ -601,51 +619,89 @@ static void scene_update_mesh_normals(
 	printf("%s(); vao=%u; vbo=%u[%zu]\n", __FUNCTION__, normals->vao, normals->vbo, normal_lines.size());
 }
 
+static GLuint scene_load_texture(const std::string& filename)
+{
+	int width, height, channels;
+	unsigned char* data = stbi_load(filename.c_str(), &width, &height, &channels, STBI_rgb_alpha);
+	if (!data) {
+		fprintf(stderr, "Failed to load texture: %s\n", filename.c_str());
+		return 0;
+	}
+
+	GLuint texture;
+	glCreateTextures(GL_TEXTURE_2D, 1, &texture);
+	glTextureStorage2D(texture, 1, GL_RGBA8, width, height);
+	glTextureSubImage2D(texture, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, data);
+	glTextureParameteri(texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTextureParameteri(texture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTextureParameteri(texture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	stbi_image_free(data);
+
+	printf("%s(); tex=%u; %dx%d; channels=%d\n", __FUNCTION__, texture, width, height, channels);
+	return texture;
+}
+
 int scene_load_resources(void)
 {
 	int r;
 
 	// Load shaders
-	r = scene_load_shader_program("test/simple.vert.glsl", "test/simple.frag.glsl", &default_shader);
+	r = scene_load_shader_program("test/simple.vert.glsl", "test/simple.frag.glsl", &simple_shader);
 	if (r) {
 		fprintf(stderr, "Failed to load shader program\n");
 		return r;
 	}
 
+	r = scene_load_shader_program("test/textured.vert.glsl", "test/textured.frag.glsl", &textured_shader);
+	if (r) {
+		fprintf(stderr, "Failed to load textured shader program\n");
+		return r;
+	}
+
 	// Load cube mesh
 	cube.tessellate(cube_vertices, cube_indices);
-	scene_load_mesh(cube_vertices, cube_indices, &default_shader, &cube_mesh);
-	scene_load_mesh_normals(cube_vertices, &default_shader, &cube_mesh.normals);
+	scene_load_mesh(cube_vertices, cube_indices, &textured_shader, &cube_mesh);
+	scene_load_mesh_normals(cube_vertices, &textured_shader, &cube_mesh.normals);
+	cube_mesh.textures.push_back({
+		textured_shader.sampler_unit("material_diffuse"),
+		scene_load_texture("test/data/container2.png")
+	});
+	cube_mesh.textures.push_back({
+		textured_shader.sampler_unit("material_specular"),
+		scene_load_texture("test/data/container2_specular.png")
+	});
 
 	// Load octahedron mesh
 	octahedron.tessellate(octahedron_vertices, octahedron_indices);
-	scene_load_mesh(octahedron_vertices, octahedron_indices, &default_shader, &octahedron_mesh);
-	scene_load_mesh_normals(octahedron_vertices, &default_shader, &octahedron_mesh.normals);
+	scene_load_mesh(octahedron_vertices, octahedron_indices, &simple_shader, &octahedron_mesh);
+	scene_load_mesh_normals(octahedron_vertices, &simple_shader, &octahedron_mesh.normals);
 
 	// Load bezier surface mesh
 	bezier_surface.tessellate(16, 16, bezier_surface_vertices, bezier_surface_indices);
-	scene_load_mesh(bezier_surface_vertices, bezier_surface_indices, &default_shader, &bezier_surface_mesh);
-	scene_load_mesh_normals(bezier_surface_vertices, &default_shader, &bezier_surface_mesh.normals);
+	scene_load_mesh(bezier_surface_vertices, bezier_surface_indices, &simple_shader, &bezier_surface_mesh);
+	scene_load_mesh_normals(bezier_surface_vertices, &simple_shader, &bezier_surface_mesh.normals);
 
 	// Load teapot mesh
 	teapot.tessellate(12, 12, teapot_vertices, teapot_indices);
-	scene_load_mesh(teapot_vertices, teapot_indices, &default_shader, &teapot_mesh);
-	scene_load_mesh_normals(teapot_vertices, &default_shader, &teapot_mesh.normals);
+	scene_load_mesh(teapot_vertices, teapot_indices, &simple_shader, &teapot_mesh);
+	scene_load_mesh_normals(teapot_vertices, &simple_shader, &teapot_mesh.normals);
 
 	// Load teacup mesh
 	teacup.tessellate(8, 8, teacup_vertices, teacup_indices);
-	scene_load_mesh(teacup_vertices, teacup_indices, &default_shader, &teacup_mesh);
-	scene_load_mesh_normals(teacup_vertices, &default_shader, &teacup_mesh.normals);
+	scene_load_mesh(teacup_vertices, teacup_indices, &simple_shader, &teacup_mesh);
+	scene_load_mesh_normals(teacup_vertices, &simple_shader, &teacup_mesh.normals);
 
 	// Load teaspoon mesh
 	teaspoon.tessellate(8, 8, teaspoon_vertices, teaspoon_indices);
-	scene_load_mesh(teaspoon_vertices, teaspoon_indices, &default_shader, &teaspoon_mesh);
-	scene_load_mesh_normals(teaspoon_vertices, &default_shader, &teaspoon_mesh.normals);
+	scene_load_mesh(teaspoon_vertices, teaspoon_indices, &simple_shader, &teaspoon_mesh);
+	scene_load_mesh_normals(teaspoon_vertices, &simple_shader, &teaspoon_mesh.normals);
 
 	// Load sphere mesh
 	sphere.tessellate(3, sphere_vertices, sphere_indices);
-	scene_load_mesh(sphere_vertices, sphere_indices, &default_shader, &sphere_mesh);
-	scene_load_mesh_normals(sphere_vertices, &default_shader, &sphere_mesh.normals);
+	scene_load_mesh(sphere_vertices, sphere_indices, &simple_shader, &sphere_mesh);
+	scene_load_mesh_normals(sphere_vertices, &simple_shader, &sphere_mesh.normals);
 
 	return 0;
 }
@@ -692,6 +748,11 @@ static void scene_unload_mesh(mesh_t* mesh)
 		glDeleteBuffers(1, &mesh->normals.vbo);
 		mesh->normals.vbo = 0;
 	}
+
+	for (const auto& t : mesh->textures) {
+		glDeleteTextures(1, &t.texture);
+	}
+	mesh->textures.clear();
 }
 
 void scene_unload_resources(void)
@@ -704,7 +765,8 @@ void scene_unload_resources(void)
 	scene_unload_mesh(&teaspoon_mesh);
 	scene_unload_mesh(&sphere_mesh);
 
-	scene_unload_shader_program(&default_shader);
+	scene_unload_shader_program(&simple_shader);
+	scene_unload_shader_program(&textured_shader);
 }
 
 void scene_update(void)
@@ -754,10 +816,18 @@ void scene_render(enum scene_demo_t scene_demo)
 	glm::vec3 light_diffuse = glm::vec3(0.8f, 0.8f, 0.8f);
 	glm::vec3 light_specular = glm::vec3(1.0f, 1.0f, 1.0f);
 
-	glProgramUniform4fv(current_shader->program, current_shader->uniform("light.position"), 1, glm::value_ptr(light_position));
-	glProgramUniform3fv(current_shader->program, current_shader->uniform("light.ambient"), 1, glm::value_ptr(light_ambient));
-	glProgramUniform3fv(current_shader->program, current_shader->uniform("light.diffuse"), 1, glm::value_ptr(light_diffuse));
-	glProgramUniform3fv(current_shader->program, current_shader->uniform("light.specular"), 1, glm::value_ptr(light_specular));
+	if (current_shader->has_uniform("light.position")) {
+		glProgramUniform4fv(current_shader->program, current_shader->uniform("light.position"), 1, glm::value_ptr(light_position));
+	}
+	if (current_shader->has_uniform("light.ambient")) {
+		glProgramUniform3fv(current_shader->program, current_shader->uniform("light.ambient"), 1, glm::value_ptr(light_ambient));
+	}
+	if (current_shader->has_uniform("light.diffuse")) {
+		glProgramUniform3fv(current_shader->program, current_shader->uniform("light.diffuse"), 1, glm::value_ptr(light_diffuse));
+	}
+	if (current_shader->has_uniform("light.specular")) {
+		glProgramUniform3fv(current_shader->program, current_shader->uniform("light.specular"), 1, glm::value_ptr(light_specular));
+	}
 
 	// Uniform material parameters
 	glm::vec3 material_ambient = glm::vec3(0.2f, 0.0f, 0.0f);
@@ -765,10 +835,23 @@ void scene_render(enum scene_demo_t scene_demo)
 	glm::vec3 material_specular = glm::vec3(1.0f, 1.0f, 1.0f);
 	float material_shininess = 25;
 
-	glProgramUniform3fv(current_shader->program, current_shader->uniform("material.ambient"), 1, glm::value_ptr(material_ambient));
-	glProgramUniform3fv(current_shader->program, current_shader->uniform("material.diffuse"), 1, glm::value_ptr(material_diffuse));
-	glProgramUniform3fv(current_shader->program, current_shader->uniform("material.specular"), 1, glm::value_ptr(material_specular));
-	glProgramUniform1f(current_shader->program, current_shader->uniform("material.shininess"), material_shininess);
+	if (current_shader->has_uniform("material.ambient")) {
+		glProgramUniform3fv(current_shader->program, current_shader->uniform("material.ambient"), 1, glm::value_ptr(material_ambient));
+	}
+	if (current_shader->has_uniform("material.diffuse")) {
+		glProgramUniform3fv(current_shader->program, current_shader->uniform("material.diffuse"), 1, glm::value_ptr(material_diffuse));
+	}
+	if (current_shader->has_uniform("material.specular")) {
+		glProgramUniform3fv(current_shader->program, current_shader->uniform("material.specular"), 1, glm::value_ptr(material_specular));
+	}
+	if (current_shader->has_uniform("material.shininess")) {
+		glProgramUniform1f(current_shader->program, current_shader->uniform("material.shininess"), material_shininess);
+	}
+
+	// Bind textures
+	for (const auto& t : current_mesh->textures) {
+		glBindTextureUnit(t.unit, t.texture);
+	}
 
 	// Render current mesh
 	glUseProgram(current_shader->program);
@@ -776,19 +859,27 @@ void scene_render(enum scene_demo_t scene_demo)
 	glDrawElements(GL_TRIANGLES, current_mesh->index_count, GL_UNSIGNED_INT, 0);
 
 	if (render_normals && current_mesh->normals.vao) {
+		const shader_program_t* normal_shader = &simple_shader;
+
+		// Uniform matrices for normal lines
+		glProgramUniformMatrix4fv(normal_shader->program, normal_shader->uniform("m_mvp"), 1, GL_FALSE, glm::value_ptr(m_mvp));
+		glProgramUniformMatrix4fv(normal_shader->program, normal_shader->uniform("m_modelview"), 1, GL_FALSE, glm::value_ptr(m_modelview));
+		glProgramUniformMatrix3fv(normal_shader->program, normal_shader->uniform("m_normal"), 1, GL_FALSE, glm::value_ptr(m_normal));
+
 		// Update uniform light parameters for normal lines
 		light_ambient = glm::vec3(1.0f, 1.0f, 1.0f);
 		light_diffuse = glm::vec3(1.0f, 1.0f, 1.0f);
-		glProgramUniform3fv(current_shader->program, current_shader->uniform("light.ambient"), 1, glm::value_ptr(light_ambient));
-		glProgramUniform3fv(current_shader->program, current_shader->uniform("light.diffuse"), 1, glm::value_ptr(light_diffuse));
+		glProgramUniform3fv(normal_shader->program, normal_shader->uniform("light.ambient"), 1, glm::value_ptr(light_ambient));
+		glProgramUniform3fv(normal_shader->program, normal_shader->uniform("light.diffuse"), 1, glm::value_ptr(light_diffuse));
 
 		// Update uniform material parameters for normal lines
 		material_ambient = glm::vec3(1.0f, 1.0f, 1.0f);
 		material_diffuse = glm::vec3(1.0f, 1.0f, 1.0f);
-		glProgramUniform3fv(current_shader->program, current_shader->uniform("material.ambient"), 1, glm::value_ptr(material_ambient));
-		glProgramUniform3fv(current_shader->program, current_shader->uniform("material.diffuse"), 1, glm::value_ptr(material_diffuse));
+		glProgramUniform3fv(normal_shader->program, normal_shader->uniform("material.ambient"), 1, glm::value_ptr(material_ambient));
+		glProgramUniform3fv(normal_shader->program, normal_shader->uniform("material.diffuse"), 1, glm::value_ptr(material_diffuse));
 
 		// Render current normals
+		glUseProgram(normal_shader->program);
 		glBindVertexArray(current_mesh->normals.vao);
 		glDrawArrays(GL_LINES, 0, current_mesh->normals.vertex_count);
 	}

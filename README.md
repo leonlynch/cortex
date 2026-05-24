@@ -15,6 +15,12 @@ Dependencies
 * [Qt](https://www.qt.io/) 6.10 or greater
 * [Assimp](https://github.com/assimp/assimp) 6 or greater
 
+Third-party content
+-------------------
+
+* [stb_image](https://github.com/nothings/stb)
+* Textures from [LearnOpenGL](https://github.com/JoeyDeVries/LearnOpenGL)
+
 License
 -------
 
