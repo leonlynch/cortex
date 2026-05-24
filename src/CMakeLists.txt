@@ -13,6 +13,7 @@ add_library(cortex
 	material.cc
 	mesh.cc
 	gldebug.cc
+	glhelpers.cc
 )
 target_include_directories(cortex
 	INTERFACE

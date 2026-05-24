@@ -294,6 +294,35 @@ void cortex_gldebug_attribute(
 	}
 }
 
+void cortex_gldebug_sampler(
+	GLenum severity,
+	const char* name,
+	GLint size,
+	GLenum type,
+	GLint location,
+	GLint unit
+)
+{
+	if (size > 1) {
+		printf("%s[GL|shader] layout(binding=%d) uniform %s %s[%d]; // location=%d\n" ANSI_RESET,
+			gldebug_severity_str(severity),
+			unit,
+			gldebug_glsl_type_str(type),
+			name,
+			size,
+			location
+		);
+	} else {
+		printf("%s[GL|shader] layout(binding=%d) uniform %s %s; // location=%d\n" ANSI_RESET,
+			gldebug_severity_str(severity),
+			unit,
+			gldebug_glsl_type_str(type),
+			name,
+			location
+		);
+	}
+}
+
 void cortex_gldebug_fragdata(
 	GLenum severity,
 	const char* name,

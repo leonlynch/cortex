@@ -83,6 +83,31 @@ static inline void cortex_gldebug_attribute(
 	);
 }
 
+void cortex_gldebug_sampler(
+	GLenum severity,
+	const char* name,
+	GLint size,
+	GLenum type,
+	GLint location,
+	GLint unit
+);
+
+static inline void cortex_gldebug_sampler(
+	const char* name,
+	GLint size,
+	GLenum type,
+	GLint location,
+	GLint unit
+) {
+	cortex_gldebug_sampler(GL_DEBUG_SEVERITY_NOTIFICATION,
+		name,
+		size,
+		type,
+		location,
+		unit
+	);
+}
+
 void cortex_gldebug_fragdata(
 	GLenum severity,
 	const char* name,

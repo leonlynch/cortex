@@ -36,6 +36,7 @@
 #include "sphere.h"
 #include "shape.h"
 #include "gldebug.h"
+#include "glhelpers.h"
 
 static bool ready = 0;
 static int width = 0;
@@ -410,9 +411,17 @@ static int scene_load_shader_program(const std::string& vertex_shader_file, cons
 		std::string uniform_name(uniform_max_length, 0);
 		GLint uniform_size = 0;
 		GLenum uniform_type = 0;
+		GLint uniform_location;
 		glGetActiveUniform(shader_program->program, i, uniform_name.size(), NULL, &uniform_size, &uniform_type, uniform_name.data());
-		shader_program->uniform_location[uniform_name.data()] = glGetUniformLocation(shader_program->program, uniform_name.data());
-		cortex_gldebug_uniform(uniform_name.data(), uniform_size, uniform_type, shader_program->uniform_location[uniform_name.data()]);
+		uniform_location = glGetUniformLocation(shader_program->program, uniform_name.data());
+		shader_program->uniform_location[uniform_name.data()] = uniform_location;
+		if (glUniformTypeIsSampler(uniform_type)) {
+			GLint unit = 0;
+			glGetUniformiv(shader_program->program, uniform_location, &unit);
+			cortex_gldebug_sampler(uniform_name.data(), uniform_size, uniform_type, uniform_location, unit);
+		} else {
+			cortex_gldebug_uniform(uniform_name.data(), uniform_size, uniform_type, uniform_location);
+		}
 	}
 
 	// Lookup all attributes
