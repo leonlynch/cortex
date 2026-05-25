@@ -20,6 +20,7 @@ Third-party content
 
 * [stb_image](https://github.com/nothings/stb)
 * Textures from [LearnOpenGL](https://github.com/JoeyDeVries/LearnOpenGL)
+* Textures from [Poly Haven](https://polyhaven.com/textures)
 
 License
 -------

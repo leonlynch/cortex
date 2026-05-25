@@ -88,6 +88,14 @@ struct textured_vertex_t {
 	glm::vec2 texcoord;
 };
 
+struct pbr_vertex_t {
+	glm::vec3 position;
+	glm::vec3 normal;
+	glm::vec3 tangent;
+	glm::vec3 bitangent;
+	glm::vec2 texcoord;
+};
+
 struct normals_t {
 	GLuint vao = 0;
 
@@ -121,6 +129,7 @@ struct mesh_t {
 // Shader programs
 static shader_program_t simple_shader;
 static shader_program_t textured_shader;
+static shader_program_t pbr_shader;
 
 // Cube mesh
 static Cube cube;
@@ -143,7 +152,7 @@ static glm::vec3 bezier_surface_data[4][4] = {
 };
 
 static BezierSurface<glm::vec3, 3, 3> bezier_surface(bezier_surface_data);
-static std::vector<vertex_t> bezier_surface_vertices;
+static std::vector<pbr_vertex_t> bezier_surface_vertices;
 static std::vector<unsigned int> bezier_surface_indices;
 static mesh_t bezier_surface_mesh;
 
@@ -510,7 +519,8 @@ static void scene_load_mesh(
 	mesh_t* mesh)
 {
 	// VAO layout:
-	// - VBO #0 for interleaved vertex data (position, normal, texcoord)
+	// - VBO #0 for interleaved vertex data:
+	//   position, normal, tangent, bitangent, texcoord
 	// - IBO for element indexes
 
 	// Create vertex array object and vertex/index buffer objects
@@ -535,6 +545,26 @@ static void scene_load_mesh(
 			glEnableVertexArrayAttrib(mesh->vao, norm_loc);
 			glVertexArrayAttribBinding(mesh->vao, norm_loc, mesh->vbo_binding);
 			glVertexArrayAttribFormat(mesh->vao, norm_loc, 3, GL_FLOAT, GL_FALSE, offsetof(VertexType, normal));
+		}
+	}
+
+	// Setup format and binding for vertex tangent
+	if constexpr (detail::has_tangent<VertexType>::value) {
+		if (shader->has_attribute("v_tangent")) {
+			GLuint tan_loc = shader->attribute("v_tangent");
+			glEnableVertexArrayAttrib(mesh->vao, tan_loc);
+			glVertexArrayAttribBinding(mesh->vao, tan_loc, mesh->vbo_binding);
+			glVertexArrayAttribFormat(mesh->vao, tan_loc, 3, GL_FLOAT, GL_FALSE, offsetof(VertexType, tangent));
+		}
+	}
+
+	// Setup format and binding for vertex bitangent
+	if constexpr (detail::has_bitangent<VertexType>::value) {
+		if (shader->has_attribute("v_bitangent")) {
+			GLuint btan_loc = shader->attribute("v_bitangent");
+			glEnableVertexArrayAttrib(mesh->vao, btan_loc);
+			glVertexArrayAttribBinding(mesh->vao, btan_loc, mesh->vbo_binding);
+			glVertexArrayAttribFormat(mesh->vao, btan_loc, 3, GL_FLOAT, GL_FALSE, offsetof(VertexType, bitangent));
 		}
 	}
 
@@ -672,6 +702,12 @@ int scene_load_resources(void)
 		return r;
 	}
 
+	r = scene_load_shader_program("test/pbr.vert.glsl", "test/pbr.frag.glsl", &pbr_shader);
+	if (r) {
+		fprintf(stderr, "Failed to load PBR shader program\n");
+		return r;
+	}
+
 	// Load cube mesh
 	cube.tessellate(cube_vertices, cube_indices);
 	scene_load_mesh(cube_vertices, cube_indices, &textured_shader, &cube_mesh);
@@ -692,8 +728,20 @@ int scene_load_resources(void)
 
 	// Load bezier surface mesh
 	bezier_surface.tessellate(16, 16, bezier_surface_vertices, bezier_surface_indices);
-	scene_load_mesh(bezier_surface_vertices, bezier_surface_indices, &simple_shader, &bezier_surface_mesh);
-	scene_load_mesh_normals(bezier_surface_vertices, &simple_shader, &bezier_surface_mesh.normals);
+	scene_load_mesh(bezier_surface_vertices, bezier_surface_indices, &pbr_shader, &bezier_surface_mesh);
+	scene_load_mesh_normals(bezier_surface_vertices, &pbr_shader, &bezier_surface_mesh.normals);
+	bezier_surface_mesh.textures.push_back({
+		pbr_shader.sampler_unit("material_albedo"),
+		scene_load_texture("test/data/wood_table_diff_1k.png", GL_SRGB8_ALPHA8)
+	});
+	bezier_surface_mesh.textures.push_back({
+		pbr_shader.sampler_unit("material_arm"),
+		scene_load_texture("test/data/wood_table_arm_1k.png", GL_RGBA8)
+	});
+	bezier_surface_mesh.textures.push_back({
+		pbr_shader.sampler_unit("material_normal"),
+		scene_load_texture("test/data/wood_table_nor_gl_1k.png", GL_RGBA8)
+	});
 
 	// Load teapot mesh
 	teapot.tessellate(12, 12, teapot_vertices, teapot_indices);
@@ -779,6 +827,7 @@ void scene_unload_resources(void)
 
 	scene_unload_shader_program(&simple_shader);
 	scene_unload_shader_program(&textured_shader);
+	scene_unload_shader_program(&pbr_shader);
 }
 
 void scene_update(void)
