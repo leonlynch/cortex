@@ -33,7 +33,7 @@ in vec3 f_n;
 in vec3 f_l;
 in vec3 f_v;
 
-out vec3 color;
+out vec4 color;
 
 void main()
 {
@@ -56,5 +56,5 @@ void main()
 	}
 
 	// compute color
-	color = max(diffuse + specular, ambient);
+	color = vec4(max(diffuse + specular, ambient), 1.0);
 }

@@ -30,7 +30,7 @@ in vec3 f_v;
 in mat3 f_tbn;
 in vec2 f_texcoord;
 
-out vec3 color;
+out vec4 color;
 
 // Useful constants
 const float PI = 3.14159265359;
@@ -141,5 +141,5 @@ void main()
 	// Compute ambient color and apply ambient occlusion
 	vec3 ambient = light.ambient * albedo * ao;
 
-	color = ambient + radiance;
+	color = vec4(ambient + radiance, 1.0);
 }

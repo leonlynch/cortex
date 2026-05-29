@@ -238,6 +238,9 @@ int scene_init(void)
 	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 	std::printf("Debug enabled\n");
 
+	// Clear colour buffer using opaque black
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+
 	// Depth testing
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
