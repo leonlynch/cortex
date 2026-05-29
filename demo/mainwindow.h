@@ -28,6 +28,9 @@ private:
 public:
 	MainWindow(QWidget* parent = nullptr);
 
+protected:
+	virtual void keyPressEvent(QKeyEvent* event) override;
+
 private slots:
 	// connect-by-name
 	// TODO: add slots here

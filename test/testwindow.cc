@@ -1,7 +1,7 @@
 /**
  * @file testwindow.cc
  *
- * Copyright (c) 2013 Leon Lynch
+ * Copyright 2013, 2026 Leon Lynch
  *
  * This file is licensed under the terms of the MIT license.
  * See LICENSE file.
@@ -10,6 +10,8 @@
 #include "testwindow.h"
 
 #include "testscene.h"
+
+#include <QtGui/QKeyEvent>
 
 TestWindow::TestWindow(QWindow* parent)
 : QOpenGLWindow(QOpenGLWindow::NoPartialUpdate, parent)
@@ -59,4 +61,15 @@ void TestWindow::doUpdate()
 	scene_update();
 
 	this->update();
+}
+
+void TestWindow::keyPressEvent(QKeyEvent* event)
+{
+	if (event->key() == Qt::Key_F) {
+		if (visibility() == QWindow::FullScreen) {
+			showNormal();
+		} else {
+			showFullScreen();
+		}
+	}
 }

@@ -19,6 +19,11 @@ static enum scene_demo_t current_scene_demo = SCENE_DEMO_CUBE;
 static bool render_normals = false;
 static bool render_wireframe = false;
 static int subdivision_delta = 0;
+static bool is_fullscreen = false;
+static int windowed_x;
+static int windowed_y;
+static int windowed_width;
+static int windowed_height;
 
 static void glfw_error_func(int error, const char* description)
 {
@@ -60,6 +65,20 @@ static void glfw_key_func(GLFWwindow* window, int key, int scancode, int action,
 
 	if (key == GLFW_KEY_RIGHT_BRACKET && action == GLFW_PRESS) {
 		scene_set_complexity(++subdivision_delta);
+	}
+
+	if (key == GLFW_KEY_F && action == GLFW_PRESS) {
+		if (is_fullscreen) {
+			glfwSetWindowMonitor(window, NULL, windowed_x, windowed_y, windowed_width, windowed_height, 0);
+			is_fullscreen = false;
+		} else {
+			glfwGetWindowPos(window, &windowed_x, &windowed_y);
+			glfwGetWindowSize(window, &windowed_width, &windowed_height);
+			GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+			const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+			glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+			is_fullscreen = true;
+		}
 	}
 }
 

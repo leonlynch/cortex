@@ -11,6 +11,7 @@
 #include "demo_config.h"
 #include "demowidget.h"
 
+#include <QtGui/QKeyEvent>
 #include <iostream>
 
 MainWindow::MainWindow(QWidget* parent)
@@ -41,6 +42,18 @@ MainWindow::MainWindow(QWidget* parent)
 	centralWidget()->layout()->addWidget(demowidget);
 }
 
+void MainWindow::keyPressEvent(QKeyEvent* event)
+{
+	if (event->key() == Qt::Key_F) {
+		if (isFullScreen()) {
+			showNormal();
+		} else {
+			showFullScreen();
+		}
+	} else {
+		QMainWindow::keyPressEvent(event);
+	}
+}
 
 void MainWindow::appendLog(const QString& msg)
 {

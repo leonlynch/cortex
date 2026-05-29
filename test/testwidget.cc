@@ -11,9 +11,12 @@
 
 #include "testscene.h"
 
+#include <QtGui/QKeyEvent>
+
 TestWidget::TestWidget(QWidget* parent)
 : QOpenGLWidget(parent)
 {
+	setFocusPolicy(Qt::StrongFocus);
 	connect(&timer, &QTimer::timeout, this, &TestWidget::doUpdate);
 
 	setTextureFormat(GL_SRGB8_ALPHA8);
@@ -37,6 +40,7 @@ void TestWidget::initializeGL()
 		error("Failed to initialize scene");
 		return;
 	}
+
 	r = scene_load_resources();
 	if (r) {
 		error("Failed to load scene resources");
@@ -61,4 +65,15 @@ void TestWidget::doUpdate()
 	scene_update();
 
 	this->update();
+}
+
+void TestWidget::keyPressEvent(QKeyEvent* event)
+{
+	if (event->key() == Qt::Key_F) {
+		if (isFullScreen()) {
+			showNormal();
+		} else {
+			showFullScreen();
+		}
+	}
 }
