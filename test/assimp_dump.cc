@@ -33,57 +33,109 @@ static void print_node_recursive(const aiNode* node, unsigned int node_depth = 0
 
 static void print_mesh(const struct aiMesh* mesh)
 {
-	unsigned int mPrimitiveTypes;
 	unsigned int numColors = 0;
 	unsigned int numTextureCoords = 0;
 
 	std::printf("'%s': ", mesh->mName.C_Str());
 
 	std::printf("mPrimitiveTypes=");
-	mPrimitiveTypes = mesh->mPrimitiveTypes;
-	for (unsigned int i = 0; i < 4 && mPrimitiveTypes; ++i) {
-		if (mesh->mPrimitiveTypes & ((1 << i) - 1)) {
+	bool first = true;
+	for (unsigned int bit = 0x1;
+		bit <= _aiPrimitiveType_Force32Bit;
+		bit <<= 1
+	) {
+		if (!(mesh->mPrimitiveTypes & bit)) {
+			continue;
+		}
+		if (!first) {
 			std::printf(",");
 		}
-		if ((mesh->mPrimitiveTypes & (1 << i)) == aiPrimitiveType_POINT) {
+		first = false;
+		if (bit == aiPrimitiveType_POINT) {
 			std::printf("POINT");
-		}
-		if ((mesh->mPrimitiveTypes & (1 << i)) == aiPrimitiveType_LINE) {
+		} else if (bit == aiPrimitiveType_LINE) {
 			std::printf("LINE");
-		}
-		if ((mesh->mPrimitiveTypes & (1 << i)) == aiPrimitiveType_TRIANGLE) {
+		} else if (bit == aiPrimitiveType_TRIANGLE) {
 			std::printf("TRIANGLE");
-		}
-		if ((mesh->mPrimitiveTypes & (1 << i)) == aiPrimitiveType_POLYGON) {
+		} else if (bit == aiPrimitiveType_POLYGON) {
 			std::printf("POLYGON");
+		} else if (bit == aiPrimitiveType_NGONEncodingFlag) {
+			std::printf("NGON");
+		} else {
+			std::printf("UNKNOWN");
 		}
-
-		mPrimitiveTypes &= ~(1 << i);
 	}
 	std::printf("; ");
 
-	std::printf("mNumVertices=%u {%s%s%s}",
+	std::printf("mNumVertices=%u {%s%s%s",
 		mesh->mNumVertices,
 		mesh->mNormals ? "mNormals" : "",
-		mesh->mTangents ? " mTangents" : "",
-		mesh->mBitangents ? " mBitangents" : ""
+		mesh->mTangents ? ", mTangents" : "",
+		mesh->mBitangents ? ", mBitangents" : ""
 	);
-	for (std::size_t i = 0; i < sizeof(mesh->mColors) / sizeof(mesh->mColors[0]); ++i) {
-		if (mesh->mColors[i])
+	for (std::size_t i = 0;
+		i < sizeof(mesh->mColors) / sizeof(mesh->mColors[0]);
+		++i
+	) {
+		if (mesh->mColors[i]) {
 			++numColors;
+		}
 	}
 	if (numColors) {
-		std::printf("; mColors=%u", numColors);
+		std::printf(", mColors[%u]", numColors);
 	}
-	for (std::size_t i = 0; i < sizeof(mesh->mTextureCoords) / sizeof(mesh->mTextureCoords[0]); ++i) {
-		if (mesh->mTextureCoords[i])
-			++numTextureCoords;
+	for (std::size_t i = 0;
+		i < sizeof(mesh->mTextureCoords) / sizeof(mesh->mTextureCoords[0]);
+		++i
+	) {
+		if (!mesh->mTextureCoords[i]) {
+			continue;
+		}
+		if (numTextureCoords == 0) {
+			std::printf(", mTextureCoords[");
+		} else {
+			std::printf(",");
+		}
+		const aiString* uvname = mesh->GetTextureCoordsName(i);
+		if (uvname && uvname->length > 0) {
+			std::printf("%s(%uD)", uvname->C_Str(), mesh->mNumUVComponents[i]);
+		} else {
+			std::printf("%uD", mesh->mNumUVComponents[i]);
+		}
+		++numTextureCoords;
 	}
 	if (numTextureCoords) {
-		std::printf("; mTextureCoords=%u", numTextureCoords);
+		std::printf("]");
 	}
-	std::printf("; mNumFaces=%u; mNumBones=%u", mesh->mNumFaces, mesh->mNumBones);
-	std::printf("; mMaterialIndex=%u\n", mesh->mMaterialIndex);
+	std::printf("}");
+
+	std::printf("; mNumFaces=%u", mesh->mNumFaces);
+	if (mesh->mNumBones) {
+		std::printf("; mNumBones=%u", mesh->mNumBones);
+	}
+	std::printf("; mMaterialIndex=%u", mesh->mMaterialIndex);
+	if (mesh->mNumAnimMeshes) {
+		std::printf("; mNumAnimMeshes=%u", mesh->mNumAnimMeshes);
+	}
+	if (mesh->mMethod) {
+		std::printf("; mMethod=");
+		switch (mesh->mMethod) {
+			case aiMorphingMethod_VERTEX_BLEND: std::printf("VERTEX_BLEND"); break;
+			case aiMorphingMethod_MORPH_NORMALIZED: std::printf("MORPH_NORMALIZED"); break;
+			case aiMorphingMethod_MORPH_RELATIVE: std::printf("MORPH_RELATIVE"); break;
+			default: std::printf("UNKNOWN"); break;
+		}
+	}
+	if (mesh->mAABB.mMin.x != 0.0f || mesh->mAABB.mMin.y != 0.0f || mesh->mAABB.mMin.z != 0.0f ||
+		mesh->mAABB.mMax.x != 0.0f || mesh->mAABB.mMax.y != 0.0f || mesh->mAABB.mMax.z != 0.0f
+	) {
+		std::printf("; mAABB={ (%f,%f,%f), (%f,%f,%f) }",
+			mesh->mAABB.mMin.x, mesh->mAABB.mMin.y, mesh->mAABB.mMin.z,
+			mesh->mAABB.mMax.x, mesh->mAABB.mMax.y, mesh->mAABB.mMax.z
+		);
+	}
+
+	std::printf("\n");
 }
 
 template <typename T>
