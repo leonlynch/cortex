@@ -1,7 +1,7 @@
 /**
- * @file assimp_test.cc
+ * @file assimp_dump.cc
  *
- * Copyright (c) 2013 Leon Lynch
+ * Copyright 2013, 2026 Leon Lynch
  *
  * This file is licensed under the terms of the MIT license.
  * See LICENSE file.

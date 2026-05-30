@@ -31,8 +31,8 @@ target_include_directories(bezier_test PRIVATE ${CMAKE_SOURCE_DIR}/src)
 add_executable(teaset_test teaset_test.cc)
 target_link_libraries(teaset_test cortex)
 
-add_executable(assimp_test assimp_test.cc)
-target_link_libraries(assimp_test assimp::assimp)
+add_executable(assimp_dump assimp_dump.cc)
+target_link_libraries(assimp_dump assimp::assimp)
 
 add_executable(cortex_test cortex_test.cc)
 target_link_libraries(cortex_test cortex)
