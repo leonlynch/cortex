@@ -15,6 +15,30 @@
 #include <iostream>
 #include <cstdio>
 
+template <typename T>
+static void print_vector(const T& v)
+{
+	constexpr std::size_t count = sizeof(T) / sizeof(ai_real);
+	const ai_real* f = reinterpret_cast<const ai_real*>(&v);
+
+	std::printf("{ ");
+	for (std::size_t i = 0; i < count; ++i) {
+		if (i) {
+			std::printf(", ");
+		}
+		std::printf("%f", f[i]);
+	}
+	std::printf(" }");
+}
+
+template <typename T>
+static void print_vector(const char* name, const T& v)
+{
+	std::printf("\t%s = ", name);
+	print_vector(v);
+	std::printf("\n");
+}
+
 static void print_node_recursive(const aiNode* node, unsigned int node_depth = 0)
 {
 	for (unsigned int i = 0; i < node_depth; ++i) {
@@ -346,6 +370,70 @@ static void print_texture(unsigned int idx, const struct aiTexture* texture)
 	}
 }
 
+static void print_light(const aiLight* light)
+{
+	const char* type;
+
+	switch (light->mType) {
+		case aiLightSource_UNDEFINED: type = "UNDEFINED"; break;
+		case aiLightSource_DIRECTIONAL: type = "DIRECTIONAL"; break;
+		case aiLightSource_POINT: type = "POINT"; break;
+		case aiLightSource_SPOT: type = "SPOT"; break;
+		case aiLightSource_AMBIENT: type = "AMBIENT"; break;
+		case aiLightSource_AREA: type = "AREA"; break;
+		default: type = "UNKNOWN"; break;
+	}
+
+	std::printf("'%s': mType=%s\n", light->mName.C_Str(), type);
+	if (light->mType != aiLightSource_DIRECTIONAL) {
+		print_vector("mPosition", light->mPosition);
+	}
+	if (light->mType != aiLightSource_POINT) {
+		print_vector("mDirection", light->mDirection);
+		print_vector("mUp", light->mUp);
+	}
+	if (light->mType != aiLightSource_DIRECTIONAL) {
+		std::printf("\tmAttenuation = { constant=%f, linear=%f, quadratic=%f }\n",
+			light->mAttenuationConstant,
+			light->mAttenuationLinear,
+			light->mAttenuationQuadratic
+		);
+	}
+	print_vector("mColorDiffuse", light->mColorDiffuse);
+	print_vector("mColorSpecular", light->mColorSpecular);
+	print_vector("mColorAmbient", light->mColorAmbient);
+	if (light->mType == aiLightSource_SPOT) {
+		std::printf("\tmAngle = { inner=%f, outer=%f }\n",
+			light->mAngleInnerCone,
+			light->mAngleOuterCone
+		);
+	}
+	if (light->mType == aiLightSource_AREA) {
+		print_vector("mSize", light->mSize);
+	}
+}
+
+static void print_camera(const aiCamera* camera)
+{
+	std::printf("'%s':\n", camera->mName.C_Str());
+	print_vector("mPosition", camera->mPosition);
+	print_vector("mUp", camera->mUp);
+	print_vector("mLookAt", camera->mLookAt);
+	if (camera->mHorizontalFOV != 0.0f) {
+		std::printf("\tmHorizontalFOV = %f\n", camera->mHorizontalFOV);
+	}
+	std::printf("\tmClipPlane = { near=%f, far=%f }\n",
+		camera->mClipPlaneNear,
+		camera->mClipPlaneFar
+	);
+	if (camera->mAspect != 0.0f) {
+		std::printf("\tmAspect = %f\n", camera->mAspect);
+	}
+	if (camera->mOrthographicWidth != 0.0f) {
+		std::printf("\tmOrthographicWidth = %f\n", camera->mOrthographicWidth);
+	}
+}
+
 static int import_scene(const char* filename)
 {
 	Assimp::Importer importer;
@@ -396,6 +484,16 @@ static int import_scene(const char* filename)
 	std::printf("\n%s textures[%u]:\n", filename, scene->mNumTextures);
 	for (unsigned int i = 0; i < scene->mNumTextures; ++i) {
 		print_texture(i, scene->mTextures[i]);
+	}
+
+	std::printf("\n%s lights[%u]:\n", filename, scene->mNumLights);
+	for (unsigned int i = 0; i < scene->mNumLights; ++i) {
+		print_light(scene->mLights[i]);
+	}
+
+	std::printf("\n%s cameras[%u]:\n", filename, scene->mNumCameras);
+	for (unsigned int i = 0; i < scene->mNumCameras; ++i) {
+		print_camera(scene->mCameras[i]);
 	}
 
 	return 0;
