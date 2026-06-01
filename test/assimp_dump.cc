@@ -14,6 +14,7 @@
 
 #include <iostream>
 #include <cstdio>
+#include <filesystem>
 
 template <typename T>
 static void print_vector(const T& v)
@@ -37,6 +38,69 @@ static void print_vector(const char* name, const T& v)
 	std::printf("\t%s = ", name);
 	print_vector(v);
 	std::printf("\n");
+}
+
+static void print_summary(const char* display_name, const aiScene* scene)
+{
+	std::printf("\n%s summary:\n", display_name);
+
+	std::printf("\tmFlags=");
+	{
+		bool first = true;
+		for (unsigned int bit = 0x1; bit != 0; bit <<= 1) {
+			if (!(scene->mFlags & bit)) {
+				continue;
+			}
+			if (!first) {
+				std::printf(",");
+			}
+			first = false;
+			if (bit == AI_SCENE_FLAGS_INCOMPLETE) {
+				std::printf("INCOMPLETE");
+			} else if (bit == AI_SCENE_FLAGS_VALIDATED) {
+				std::printf("VALIDATED");
+			} else if (bit == AI_SCENE_FLAGS_VALIDATION_WARNING) {
+				std::printf("VALIDATION_WARNING");
+			} else if (bit == AI_SCENE_FLAGS_NON_VERBOSE_FORMAT) {
+				std::printf("NON_VERBOSE_FORMAT");
+			} else if (bit == AI_SCENE_FLAGS_TERRAIN) {
+				std::printf("TERRAIN");
+			} else if (bit == AI_SCENE_FLAGS_ALLOW_SHARED) {
+				std::printf("ALLOW_SHARED");
+			} else {
+				std::printf("0x%x", bit);
+			}
+		}
+		if (first) {
+			std::printf("(none)");
+		}
+	}
+	std::printf("\n");
+
+	std::printf(
+		"\tmNumMeshes=%u\n"
+		"\tmNumMaterials=%u\n"
+		"\tmNumAnimations=%u\n"
+		"\tmNumTextures=%u\n"
+		"\tmNumLights=%u\n"
+		"\tmNumCameras=%u\n",
+		scene->mNumMeshes,
+		scene->mNumMaterials,
+		scene->mNumAnimations,
+		scene->mNumTextures,
+		scene->mNumLights,
+		scene->mNumCameras
+	);
+
+	if (scene->mMetaData) {
+		std::printf("\tmMetaData=present\n");
+	}
+	if (scene->mName.length > 0) {
+		std::printf("\tmName='%s'\n", scene->mName.C_Str());
+	}
+	if (scene->mNumSkeletons) {
+		std::printf("\tmNumSkeletons=%u\n", scene->mNumSkeletons);
+	}
 }
 
 static void print_node_recursive(const aiNode* node, unsigned int node_depth = 0)
@@ -436,6 +500,7 @@ static void print_camera(const aiCamera* camera)
 
 static int import_scene(const char* filename)
 {
+	const std::string display_name = std::filesystem::path(filename).filename().string();
 	Assimp::Importer importer;
 	const aiScene* scene;
 
@@ -452,48 +517,44 @@ static int import_scene(const char* filename)
 		return -1;
 	}
 
-	std::printf("\n%s summary:\n"
-		"\tmNumMeshes=%u\n"
-		"\tmNumMaterials=%u\n"
-		"\tmNumAnimations=%u\n"
-		"\tmNumTextures=%u\n"
-		"\tmNumLights=%u\n"
-		"\tmNumCameras=%u\n",
-		filename,
-		scene->mNumMeshes,
-		scene->mNumMaterials,
-		scene->mNumAnimations,
-		scene->mNumTextures,
-		scene->mNumLights,
-		scene->mNumCameras
-	);
+	print_summary(display_name.c_str(), scene);
 
-	std::printf("\n%s nodes:\n", filename);
+	std::printf("\n%s nodes:\n", display_name.c_str());
 	print_node_recursive(scene->mRootNode);
 
-	std::printf("\n%s meshes[%u]:\n", filename, scene->mNumMeshes);
-	for (unsigned int i = 0; i < scene->mNumMeshes; ++i) {
-		print_mesh(scene->mMeshes[i]);
+	if (scene->mNumMeshes) {
+		std::printf("\n%s meshes[%u]:\n", display_name.c_str(), scene->mNumMeshes);
+		for (unsigned int i = 0; i < scene->mNumMeshes; ++i) {
+			print_mesh(scene->mMeshes[i]);
+		}
 	}
 
-	std::printf("\n%s materials[%u]:\n", filename, scene->mNumMaterials);
-	for (unsigned int i = 0; i < scene->mNumMaterials; ++i) {
-		print_material(scene->mMaterials[i]);
+	if (scene->mNumMaterials) {
+		std::printf("\n%s materials[%u]:\n", display_name.c_str(), scene->mNumMaterials);
+		for (unsigned int i = 0; i < scene->mNumMaterials; ++i) {
+			print_material(scene->mMaterials[i]);
+		}
 	}
 
-	std::printf("\n%s textures[%u]:\n", filename, scene->mNumTextures);
-	for (unsigned int i = 0; i < scene->mNumTextures; ++i) {
-		print_texture(i, scene->mTextures[i]);
+	if (scene->mNumTextures) {
+		std::printf("\n%s textures[%u]:\n", display_name.c_str(), scene->mNumTextures);
+		for (unsigned int i = 0; i < scene->mNumTextures; ++i) {
+			print_texture(i, scene->mTextures[i]);
+		}
 	}
 
-	std::printf("\n%s lights[%u]:\n", filename, scene->mNumLights);
-	for (unsigned int i = 0; i < scene->mNumLights; ++i) {
-		print_light(scene->mLights[i]);
+	if (scene->mNumLights) {
+		std::printf("\n%s lights[%u]:\n", display_name.c_str(), scene->mNumLights);
+		for (unsigned int i = 0; i < scene->mNumLights; ++i) {
+			print_light(scene->mLights[i]);
+		}
 	}
 
-	std::printf("\n%s cameras[%u]:\n", filename, scene->mNumCameras);
-	for (unsigned int i = 0; i < scene->mNumCameras; ++i) {
-		print_camera(scene->mCameras[i]);
+	if (scene->mNumCameras) {
+		std::printf("\n%s cameras[%u]:\n", display_name.c_str(), scene->mNumCameras);
+		for (unsigned int i = 0; i < scene->mNumCameras; ++i) {
+			print_camera(scene->mCameras[i]);
+		}
 	}
 
 	return 0;
