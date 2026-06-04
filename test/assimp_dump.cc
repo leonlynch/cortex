@@ -234,15 +234,14 @@ static void print_material_property_array(const void* data, std::size_t length)
 
 	std::printf("{ ");
 	for (std::size_t i = 0; i < count; ++i) {
-		if (i)
+		if (i) {
 			std::printf(", ");
+		}
 		std::cout << value[i];
 	}
 	std::printf(" }\n");
 }
 
-// #define ASSIMP_TEST_ITERATE_MATERIAL_PROPERTIES
-#ifdef ASSIMP_TEST_ITERATE_MATERIAL_PROPERTIES
 static void print_material(const struct aiMaterial* material)
 {
 	aiReturn ret;
@@ -258,7 +257,15 @@ static void print_material(const struct aiMaterial* material)
 	for (unsigned int i = 0; i < material->mNumProperties; ++i) {
 		const struct aiMaterialProperty* property = material->mProperties[i];
 
-		std::printf("\t%s = ", property->mKey.C_Str());
+		if (property->mSemantic == aiTextureType_NONE) {
+			std::printf("\t%s = ", property->mKey.C_Str());
+		} else {
+			std::printf("\t%s[%s,%u] = ",
+				property->mKey.C_Str(),
+				aiTextureTypeToString(static_cast<aiTextureType>(property->mSemantic)),
+				property->mIndex
+			);
+		}
 
 		if (property->mSemantic == aiTextureType_NONE) {
 			switch (property->mType) {
@@ -312,116 +319,6 @@ static void print_material(const struct aiMaterial* material)
 		}
 	}
 }
-
-#else
-
-static void print_material(const struct aiMaterial* material)
-{
-	aiReturn ret;
-	aiString name;
-	int twosided;
-	enum aiShadingMode shading;
-	enum aiBlendMode blend;
-	float opacity;
-	float shininess;
-	float shininess_strength;
-	aiColor3D diffuse;
-	aiColor3D ambient;
-	aiColor3D specular;
-
-	ret = material->Get(AI_MATKEY_NAME, name);
-	if (ret == aiReturn_SUCCESS) {
-		std::printf("'%s':\n", name.C_Str());
-	} else {
-		std::printf("'':\n");
-	}
-
-	ret = material->Get(AI_MATKEY_TWOSIDED, twosided);
-	if (ret == aiReturn_SUCCESS) {
-		std::printf("\tTwo sided = %s\n", twosided ? "true" : "false");
-	}
-
-	ret = material->Get(AI_MATKEY_SHADING_MODEL, shading);
-	if (ret == aiReturn_SUCCESS) {
-		std::printf("\tShading = %d\n", shading);
-	}
-
-	ret = material->Get(AI_MATKEY_BLEND_FUNC, blend);
-	if (ret == aiReturn_SUCCESS) {
-		std::printf("\tBlend = %d\n", blend);
-	}
-
-	ret = material->Get(AI_MATKEY_OPACITY, opacity);
-	if (ret == aiReturn_SUCCESS) {
-		std::printf("\tOpacity = %f\n", opacity);
-	}
-
-	ret = material->Get(AI_MATKEY_SHININESS, shininess);
-	if (ret == aiReturn_SUCCESS) {
-		std::printf("\tShininess = %f\n", shininess);
-	}
-
-	ret = material->Get(AI_MATKEY_SHININESS_STRENGTH, shininess_strength);
-	if (ret == aiReturn_SUCCESS) {
-		std::printf("\tShininess strength = %f\n", shininess_strength);
-	}
-
-	ret = material->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse);
-	if (ret == aiReturn_SUCCESS) {
-		std::printf("\tDiffuse = { %f, %f, %f }\n", diffuse.r, diffuse.g, diffuse.b);
-	}
-
-	ret = material->Get(AI_MATKEY_COLOR_AMBIENT, ambient);
-	if (ret == aiReturn_SUCCESS) {
-		std::printf("\tAmbient = { %f, %f, %f }\n", ambient.r, ambient.g, ambient.b);
-	}
-
-	ret = material->Get(AI_MATKEY_COLOR_SPECULAR, specular);
-	if (ret == aiReturn_SUCCESS) {
-		std::printf("\tSpecular = { %f, %f, %f }\n", specular.r, specular.g, specular.b);
-	}
-
-	const aiTextureType texture_types[] = {
-		aiTextureType_NONE,
-		aiTextureType_DIFFUSE,
-		aiTextureType_SPECULAR,
-		aiTextureType_AMBIENT,
-		aiTextureType_EMISSIVE,
-		aiTextureType_HEIGHT,
-		aiTextureType_NORMALS,
-		aiTextureType_SHININESS,
-		aiTextureType_OPACITY,
-		aiTextureType_DISPLACEMENT,
-		aiTextureType_LIGHTMAP,
-		aiTextureType_REFLECTION,
-		aiTextureType_BASE_COLOR,
-		aiTextureType_NORMAL_CAMERA,
-		aiTextureType_EMISSION_COLOR,
-		aiTextureType_METALNESS,
-		aiTextureType_DIFFUSE_ROUGHNESS,
-		aiTextureType_AMBIENT_OCCLUSION,
-		aiTextureType_UNKNOWN
-	};
-	for (auto&& texture_type : texture_types) {
-		ret = AI_SUCCESS;
-		for (unsigned int idx = 0; ret == AI_SUCCESS; ++idx) {
-			aiString filename;
-			ret = material->Get(AI_MATKEY_TEXTURE(texture_type, idx), filename);
-			if (ret == AI_SUCCESS) {
-				std::printf("\tTexture(%u,%u) = '%s'\n", texture_type, idx, filename.C_Str());
-				continue;
-			}
-
-			int texture_idx;
-			ret = material->Get(AI_MATKEY_TEXTURE(texture_type, idx), texture_idx);
-			if (ret == AI_SUCCESS) {
-				std::printf("\tTexture(%u,%u) = #%u\n", texture_type, idx, texture_idx);
-				continue;
-			}
-		};
-	}
-}
-#endif
 
 static void print_texture(unsigned int idx, const struct aiTexture* texture)
 {
