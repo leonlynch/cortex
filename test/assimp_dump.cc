@@ -12,9 +12,13 @@
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 
-#include <iostream>
+#include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <filesystem>
+#include <set>
+#include <type_traits>
+#include <utility>
 
 template <typename T>
 static void print_vector(const T& v)
@@ -237,84 +241,129 @@ static void print_material_property_array(const void* data, std::size_t length)
 		if (i) {
 			std::printf(", ");
 		}
-		std::cout << value[i];
+		if constexpr (std::is_same_v<T, std::uint8_t>) {
+			std::printf("0x%02x", static_cast<unsigned int>(value[i]));
+		} else if constexpr (std::is_same_v<T, std::byte>) {
+			std::printf("0x%02x", std::to_integer<unsigned int>(value[i]));
+		} else if constexpr (std::is_floating_point_v<T>) {
+			std::printf("%f", value[i]);
+		} else {
+			std::printf("%u", static_cast<unsigned int>(value[i]));
+		}
 	}
 	std::printf(" }\n");
 }
 
 static void print_material(const struct aiMaterial* material)
 {
-	aiReturn ret;
-	aiString name;
-
-	ret = material->Get(AI_MATKEY_NAME, name);
-	if (ret == aiReturn_SUCCESS) {
+	const aiString name = material->GetName();
+	if (!name.Empty()) {
 		std::printf("'%s':\n", name.C_Str());
 	} else {
 		std::printf("(none):\n");
 	}
 
+	// Iterate and print non-texture properties
+	for (unsigned int i = 0; i < material->mNumProperties; ++i) {
+		const struct aiMaterialProperty* property = material->mProperties[i];
+
+		if (property->mSemantic != aiTextureType_NONE) {
+			// Skip texture properties
+			continue;
+		}
+
+		std::printf("\t%s = ", property->mKey.C_Str());
+
+		switch (property->mType) {
+			case aiPTI_Float:
+				print_material_property_array<float>(property->mData, property->mDataLength);
+				break;
+
+			case aiPTI_Double:
+				print_material_property_array<double>(property->mData, property->mDataLength);
+				break;
+
+			case aiPTI_String: {
+				aiString s;
+				material->Get(property->mKey.C_Str(), property->mSemantic, property->mIndex, s);
+				std::printf("'%s'\n", s.C_Str());
+				break;
+			}
+
+			case aiPTI_Integer:
+				print_material_property_array<unsigned int>(property->mData, property->mDataLength);
+				break;
+
+			case aiPTI_Buffer:
+				if (property->mDataLength <= 4) {
+					print_material_property_array<std::byte>(property->mData, property->mDataLength);
+				} else {
+					std::printf("Buffer[%u]\n", property->mDataLength);
+				}
+				break;
+
+			default:
+				std::printf("Unknown[%u]\n", property->mDataLength);
+		}
+	}
+
+	// Iterate texture properties and remember unique semantic indexes
+	std::set<std::pair<unsigned int, unsigned int>> textures;
 	for (unsigned int i = 0; i < material->mNumProperties; ++i) {
 		const struct aiMaterialProperty* property = material->mProperties[i];
 
 		if (property->mSemantic == aiTextureType_NONE) {
-			std::printf("\t%s = ", property->mKey.C_Str());
-		} else {
-			std::printf("\t%s[%s,%u] = ",
-				property->mKey.C_Str(),
-				aiTextureTypeToString(static_cast<aiTextureType>(property->mSemantic)),
-				property->mIndex
-			);
+			// Skip non-texture properties
+			continue;
 		}
 
-		if (property->mSemantic == aiTextureType_NONE) {
+		textures.insert({ property->mSemantic, property->mIndex });
+	}
+
+	// Lookup and print texture properties
+	for (const auto& texture : textures) {
+		std::printf("\t%s[%u]:\n",
+			aiTextureTypeToString(static_cast<aiTextureType>(texture.first)),
+			texture.second
+		);
+
+		for (unsigned int i = 0; i < material->mNumProperties; ++i) {
+			const struct aiMaterialProperty* property = material->mProperties[i];
+
+			if (property->mSemantic != texture.first ||
+				property->mIndex != texture.second
+			) {
+				continue;
+			}
+
+			std::printf("\t\t%s = ", property->mKey.C_Str());
+
 			switch (property->mType) {
 				case aiPTI_Float:
-					std::printf("[Float/%u] ", property->mDataLength);
 					print_material_property_array<float>(property->mData, property->mDataLength);
-					break;
-
-				case aiPTI_Double:
-					std::printf("[Double/%u] ", property->mDataLength);
-					print_material_property_array<double>(property->mData, property->mDataLength);
 					break;
 
 				case aiPTI_String: {
 					aiString s;
-					ret = material->Get(property->mKey.C_Str(), property->mSemantic, property->mIndex, s);
-					std::printf("[String] '%s'\n", s.C_Str());
+					material->Get(property->mKey.C_Str(), property->mSemantic, property->mIndex, s);
+					std::printf("'%s'\n", s.C_Str());
 					break;
 				}
 
 				case aiPTI_Integer:
-					std::printf("[Integer/%u] ", property->mDataLength);
 					print_material_property_array<unsigned int>(property->mData, property->mDataLength);
 					break;
 
 				case aiPTI_Buffer:
-					std::printf("[Buffer/%u]\n", property->mDataLength);
+					if (property->mDataLength <= 4) {
+						print_material_property_array<std::byte>(property->mData, property->mDataLength);
+					} else {
+						std::printf("Buffer[%u]\n", property->mDataLength);
+					}
 					break;
 
 				default:
-					std::printf("[Unknown/%u]\n", property->mDataLength);
-			}
-		} else {
-			switch (property->mType) {
-				case aiPTI_String: {
-					aiString s;
-					ret = material->Get(property->mKey.C_Str(), property->mSemantic, property->mIndex, s);
-					std::printf("[Texture] '%s'\n", s.C_Str());
-					break;
-				}
-
-				case aiPTI_Integer: {
-					std::printf("[Texture] ");
-					print_material_property_array<unsigned int>(property->mData, property->mDataLength);
-					break;
-				}
-
-				default:
-					std::printf("[Texture/%u]\n", property->mDataLength);
+					std::printf("Unknown[%u]\n", property->mDataLength);
 			}
 		}
 	}
