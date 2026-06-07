@@ -31,7 +31,7 @@ static void print_vector(const T& v)
 		if (i) {
 			std::printf(", ");
 		}
-		std::printf("%f", f[i]);
+		std::printf("%g", f[i]);
 	}
 	std::printf(" }");
 }
@@ -218,7 +218,7 @@ static void print_mesh(const struct aiMesh* mesh)
 	if (mesh->mAABB.mMin.x != 0.0f || mesh->mAABB.mMin.y != 0.0f || mesh->mAABB.mMin.z != 0.0f ||
 		mesh->mAABB.mMax.x != 0.0f || mesh->mAABB.mMax.y != 0.0f || mesh->mAABB.mMax.z != 0.0f
 	) {
-		std::printf("; mAABB={ (%f,%f,%f), (%f,%f,%f) }",
+		std::printf("; mAABB={ (%g,%g,%g), (%g,%g,%g) }",
 			mesh->mAABB.mMin.x, mesh->mAABB.mMin.y, mesh->mAABB.mMin.z,
 			mesh->mAABB.mMax.x, mesh->mAABB.mMax.y, mesh->mAABB.mMax.z
 		);
@@ -257,7 +257,7 @@ static void print_material_property_array(const void* data, std::size_t length)
 		} else if constexpr (std::is_same_v<T, std::byte>) {
 			std::printf("0x%02x", std::to_integer<unsigned int>(value[i]));
 		} else if constexpr (std::is_floating_point_v<T>) {
-			std::printf("%f", value[i]);
+			std::printf("%g", value[i]);
 		} else {
 			std::printf("%u", static_cast<unsigned int>(value[i]));
 		}
@@ -384,13 +384,13 @@ static void print_animation(const aiAnimation* anim)
 {
 	std::printf("'%s':\n", anim->mName.C_Str());
 	if (anim->mTicksPerSecond != 0.0) {
-		std::printf("\tmDuration = %f ticks (%f sec)\n",
+		std::printf("\tmDuration = %g ticks (%g sec)\n",
 			anim->mDuration,
 			anim->mDuration / anim->mTicksPerSecond
 		);
-		std::printf("\tmTicksPerSecond = %f\n", anim->mTicksPerSecond);
+		std::printf("\tmTicksPerSecond = %g\n", anim->mTicksPerSecond);
 	} else {
-		std::printf("\tmDuration = %f ticks\n", anim->mDuration);
+		std::printf("\tmDuration = %g ticks\n", anim->mDuration);
 	}
 
 	if (anim->mNumChannels) {
@@ -473,7 +473,7 @@ static void print_light(const aiLight* light)
 		print_vector("mUp", light->mUp);
 	}
 	if (light->mType != aiLightSource_DIRECTIONAL) {
-		std::printf("\tmAttenuation = { constant=%f, linear=%f, quadratic=%f }\n",
+		std::printf("\tmAttenuation = { constant=%g, linear=%g, quadratic=%g }\n",
 			light->mAttenuationConstant,
 			light->mAttenuationLinear,
 			light->mAttenuationQuadratic
@@ -483,7 +483,7 @@ static void print_light(const aiLight* light)
 	print_vector("mColorSpecular", light->mColorSpecular);
 	print_vector("mColorAmbient", light->mColorAmbient);
 	if (light->mType == aiLightSource_SPOT) {
-		std::printf("\tmAngle = { inner=%f, outer=%f }\n",
+		std::printf("\tmAngle = { inner=%g, outer=%g }\n",
 			light->mAngleInnerCone,
 			light->mAngleOuterCone
 		);
@@ -500,17 +500,17 @@ static void print_camera(const aiCamera* camera)
 	print_vector("mUp", camera->mUp);
 	print_vector("mLookAt", camera->mLookAt);
 	if (camera->mHorizontalFOV != 0.0f) {
-		std::printf("\tmHorizontalFOV = %f\n", camera->mHorizontalFOV);
+		std::printf("\tmHorizontalFOV = %g\n", camera->mHorizontalFOV);
 	}
-	std::printf("\tmClipPlane = { near=%f, far=%f }\n",
+	std::printf("\tmClipPlane = { near=%g, far=%g }\n",
 		camera->mClipPlaneNear,
 		camera->mClipPlaneFar
 	);
 	if (camera->mAspect != 0.0f) {
-		std::printf("\tmAspect = %f\n", camera->mAspect);
+		std::printf("\tmAspect = %g\n", camera->mAspect);
 	}
 	if (camera->mOrthographicWidth != 0.0f) {
-		std::printf("\tmOrthographicWidth = %f\n", camera->mOrthographicWidth);
+		std::printf("\tmOrthographicWidth = %g\n", camera->mOrthographicWidth);
 	}
 }
 
