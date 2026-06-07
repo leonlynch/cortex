@@ -202,9 +202,6 @@ static void print_mesh(const struct aiMesh* mesh)
 	std::printf("}");
 
 	std::printf("; mNumFaces=%u", mesh->mNumFaces);
-	if (mesh->mNumBones) {
-		std::printf("; mNumBones=%u", mesh->mNumBones);
-	}
 	std::printf("; mMaterialIndex=%u", mesh->mMaterialIndex);
 	if (mesh->mNumAnimMeshes) {
 		std::printf("; mNumAnimMeshes=%u", mesh->mNumAnimMeshes);
@@ -228,6 +225,20 @@ static void print_mesh(const struct aiMesh* mesh)
 	}
 
 	std::printf("\n");
+
+	if (mesh->mNumBones) {
+		std::printf("\tmBones[%u]:\n", mesh->mNumBones);
+		for (unsigned int i = 0; i < mesh->mNumBones; ++i) {
+			const aiBone* bone = mesh->mBones[i];
+			std::printf("\t\t'%s': mNumWeights=%u",
+				bone->mName.C_Str(), bone->mNumWeights
+			);
+			if (!bone->mOffsetMatrix.IsIdentity()) {
+				std::printf("; mOffsetMatrix=present");
+			}
+			std::printf("\n");
+		}
+	}
 }
 
 template <typename T>
@@ -369,6 +380,65 @@ static void print_material(const struct aiMaterial* material)
 	}
 }
 
+static void print_animation(const aiAnimation* anim)
+{
+	std::printf("'%s':\n", anim->mName.C_Str());
+	if (anim->mTicksPerSecond != 0.0) {
+		std::printf("\tmDuration = %f ticks (%f sec)\n",
+			anim->mDuration,
+			anim->mDuration / anim->mTicksPerSecond
+		);
+		std::printf("\tmTicksPerSecond = %f\n", anim->mTicksPerSecond);
+	} else {
+		std::printf("\tmDuration = %f ticks\n", anim->mDuration);
+	}
+
+	if (anim->mNumChannels) {
+		std::printf("\tmNumChannels = %u:\n", anim->mNumChannels);
+		for (unsigned int i = 0; i < anim->mNumChannels; ++i) {
+			const aiNodeAnim* ch = anim->mChannels[i];
+			const char* pre;
+			const char* post;
+
+			switch (ch->mPreState) {
+				case aiAnimBehaviour_DEFAULT: pre = "DEFAULT"; break;
+				case aiAnimBehaviour_CONSTANT: pre = "CONSTANT"; break;
+				case aiAnimBehaviour_LINEAR: pre = "LINEAR"; break;
+				case aiAnimBehaviour_REPEAT: pre = "REPEAT"; break;
+				default: pre = "UNKNOWN"; break;
+			}
+			switch (ch->mPostState) {
+				case aiAnimBehaviour_DEFAULT: post = "DEFAULT"; break;
+				case aiAnimBehaviour_CONSTANT: post = "CONSTANT"; break;
+				case aiAnimBehaviour_LINEAR: post = "LINEAR"; break;
+				case aiAnimBehaviour_REPEAT: post = "REPEAT"; break;
+				default: post = "UNKNOWN"; break;
+			}
+			std::printf("\t\t'%s': mNumPositionKeys=%u; mNumRotationKeys=%u; mNumScalingKeys=%u; mPreState=%s; mPostState=%s\n",
+				ch->mNodeName.C_Str(),
+				ch->mNumPositionKeys, ch->mNumRotationKeys, ch->mNumScalingKeys,
+				pre, post
+			);
+		}
+	}
+
+	if (anim->mNumMeshChannels) {
+		std::printf("\tmNumMeshChannels = %u:\n", anim->mNumMeshChannels);
+		for (unsigned int i = 0; i < anim->mNumMeshChannels; ++i) {
+			const aiMeshAnim* ch = anim->mMeshChannels[i];
+			std::printf("\t\t'%s': mNumKeys=%u\n", ch->mName.C_Str(), ch->mNumKeys);
+		}
+	}
+
+	if (anim->mNumMorphMeshChannels) {
+		std::printf("\tmNumMorphMeshChannels = %u:\n", anim->mNumMorphMeshChannels);
+		for (unsigned int i = 0; i < anim->mNumMorphMeshChannels; ++i) {
+			const aiMeshMorphAnim* ch = anim->mMorphMeshChannels[i];
+			std::printf("\t\t'%s': mNumKeys=%u\n", ch->mName.C_Str(), ch->mNumKeys);
+		}
+	}
+}
+
 static void print_texture(unsigned int idx, const struct aiTexture* texture)
 {
 	if (texture->mHeight) {
@@ -479,6 +549,13 @@ static int import_scene(const char* filename)
 		std::printf("\n%s materials[%u]:\n", display_name.c_str(), scene->mNumMaterials);
 		for (unsigned int i = 0; i < scene->mNumMaterials; ++i) {
 			print_material(scene->mMaterials[i]);
+		}
+	}
+
+	if (scene->mNumAnimations) {
+		std::printf("\n%s animations[%u]:\n", display_name.c_str(), scene->mNumAnimations);
+		for (unsigned int i = 0; i < scene->mNumAnimations; ++i) {
+			print_animation(scene->mAnimations[i]);
 		}
 	}
 
