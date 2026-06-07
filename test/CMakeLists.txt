@@ -34,5 +34,15 @@ target_link_libraries(teaset_test cortex)
 add_executable(assimp_dump assimp_dump.cc)
 target_link_libraries(assimp_dump assimp::assimp)
 
+add_library(assimp_scene OBJECT
+	assimp_scene.cc
+	../src/gldebug.cc
+	../src/glhelpers.cc
+)
+target_include_directories(assimp_scene PRIVATE ${CMAKE_SOURCE_DIR}/src)
+
+add_executable(assimp_test assimp_test.c)
+target_link_libraries(assimp_test assimp_scene glfw GLEW::GLEW OpenGL::GL assimp::assimp)
+
 add_executable(cortex_test cortex_test.cc)
 target_link_libraries(cortex_test cortex)
