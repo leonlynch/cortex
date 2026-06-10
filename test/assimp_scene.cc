@@ -79,6 +79,9 @@ struct shader_program_t {
 struct vertex_t {
 	glm::vec3 position;
 	glm::vec3 normal;
+	glm::vec3 tangent;
+	glm::vec3 bitangent;
+	glm::vec2 texcoord;
 };
 
 struct material_t {
@@ -375,7 +378,7 @@ static void scene_load_mesh(
 	mesh_t* mesh)
 {
 	// VAO layout:
-	// - VBO #0 for interleaved vertex data: position, normal
+	// - VBO #0 for interleaved vertex data
 	// - IBO for element indexes
 
 	// Create vertex array object and vertex/index buffer objects
@@ -399,6 +402,30 @@ static void scene_load_mesh(
 		glEnableVertexArrayAttrib(mesh->vao, norm_loc);
 		glVertexArrayAttribBinding(mesh->vao, norm_loc, mesh->vbo_binding);
 		glVertexArrayAttribFormat(mesh->vao, norm_loc, 3, GL_FLOAT, GL_FALSE, offsetof(vertex_t, normal));
+	}
+
+	// Setup format and binding for vertex tangent
+	if (shader->has_attribute("v_tangent")) {
+		GLuint tan_loc = shader->attribute("v_tangent");
+		glEnableVertexArrayAttrib(mesh->vao, tan_loc);
+		glVertexArrayAttribBinding(mesh->vao, tan_loc, mesh->vbo_binding);
+		glVertexArrayAttribFormat(mesh->vao, tan_loc, 3, GL_FLOAT, GL_FALSE, offsetof(vertex_t, tangent));
+	}
+
+	// Setup format and binding for vertex bitangent
+	if (shader->has_attribute("v_bitangent")) {
+		GLuint bitan_loc = shader->attribute("v_bitangent");
+		glEnableVertexArrayAttrib(mesh->vao, bitan_loc);
+		glVertexArrayAttribBinding(mesh->vao, bitan_loc, mesh->vbo_binding);
+		glVertexArrayAttribFormat(mesh->vao, bitan_loc, 3, GL_FLOAT, GL_FALSE, offsetof(vertex_t, bitangent));
+	}
+
+	// Setup format and binding for texture coordinates
+	if (shader->has_attribute("v_texcoord")) {
+		GLuint tc_loc = shader->attribute("v_texcoord");
+		glEnableVertexArrayAttrib(mesh->vao, tc_loc);
+		glVertexArrayAttribBinding(mesh->vao, tc_loc, mesh->vbo_binding);
+		glVertexArrayAttribFormat(mesh->vao, tc_loc, 2, GL_FLOAT, GL_FALSE, offsetof(vertex_t, texcoord));
 	}
 
 	mesh->shader = shader;
@@ -472,7 +499,8 @@ static void scene_load_node_meshes(
 
 	// Combine with parent transform for object space transform
 	glm::mat4 obj_transform = parent_transform * node_transform;
-	glm::mat3 normal_transform = glm::inverseTranspose(glm::mat3(obj_transform));
+	glm::mat3 tangent_transform = glm::mat3(obj_transform);
+	glm::mat3 normal_transform = glm::inverseTranspose(tangent_transform);
 
 	for (unsigned int ai_node_mesh_idx = 0;
 		ai_node_mesh_idx < node->mNumMeshes;
@@ -491,6 +519,9 @@ static void scene_load_node_meshes(
 
 		// Process vertices
 		vertices.reserve(ai_mesh->mNumVertices);
+		bool has_normals = ai_mesh->HasNormals();
+		bool has_tangents = ai_mesh->HasTangentsAndBitangents();
+		bool has_texcoords = ai_mesh->HasTextureCoords(0);
 		for (unsigned int ai_mesh_vertex_idx = 0;
 			ai_mesh_vertex_idx < ai_mesh->mNumVertices;
 			++ai_mesh_vertex_idx
@@ -503,9 +534,24 @@ static void scene_load_node_meshes(
 			vertex.position = glm::vec3(v_pos);
 
 			// Transform normal vector in node to object space
-			if (ai_mesh->HasNormals()) {
+			if (has_normals) {
 				const aiVector3D& n = ai_mesh->mNormals[ai_mesh_vertex_idx];
 				vertex.normal = glm::normalize(normal_transform * glm::vec3(n.x, n.y, n.z));
+			}
+
+			// Transform tangent and bitangent vectors in node to object space
+			if (has_tangents) {
+				const aiVector3D& t = ai_mesh->mTangents[ai_mesh_vertex_idx];
+				vertex.tangent = glm::normalize(tangent_transform * glm::vec3(t.x, t.y, t.z));
+
+				const aiVector3D& b = ai_mesh->mBitangents[ai_mesh_vertex_idx];
+				vertex.bitangent = glm::normalize(tangent_transform * glm::vec3(b.x, b.y, b.z));
+			}
+
+			// Load texture coordinates
+			if (has_texcoords) {
+				const aiVector3D& uv = ai_mesh->mTextureCoords[0][ai_mesh_vertex_idx];
+				vertex.texcoord = glm::vec2(uv.x, uv.y);
 			}
 		}
 
