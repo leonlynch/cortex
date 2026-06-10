@@ -100,6 +100,11 @@ int main(int argc, char** argv)
 {
 	printf("GLFW: %s\n", glfwGetVersionString());
 
+	if (argc != 2) {
+		fprintf(stderr, "Usage: %s <model_file>\n", argv[0]);
+		return 1;
+	}
+
 	glfwSetErrorCallback(glfw_error_func);
 
 	int r;
@@ -141,7 +146,7 @@ int main(int argc, char** argv)
 	if (r) {
 		goto exit3;
 	}
-	r = scene_load_resources();
+	r = scene_load_resources(argv[1]);
 	if (r) {
 		goto exit3;
 	}

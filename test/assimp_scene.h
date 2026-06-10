@@ -17,7 +17,7 @@ __BEGIN_DECLS
 
 int scene_init(void);
 
-int scene_load_resources(void);
+int scene_load_resources(const char* filename);
 
 void scene_unload_resources(void);
 

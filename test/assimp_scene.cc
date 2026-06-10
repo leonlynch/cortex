@@ -12,6 +12,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
+#include <cfloat>
 
 #include <map>
 #include <string>
@@ -20,6 +21,10 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
+
+#include <assimp/Importer.hpp>
+#include <assimp/postprocess.h>
+#include <assimp/scene.h>
 
 #include <GL/glew.h>
 
@@ -101,8 +106,8 @@ struct mesh_t {
 // Shader programs
 static shader_program_t simple_shader;
 
-// Model mesh
-static mesh_t mesh;
+// Scene meshes
+static std::vector<mesh_t> meshes;
 
 // Helper function declarations
 static void scene_update_mesh(
@@ -452,6 +457,107 @@ static void scene_unload_shader_program(shader_program_t* shader_program)
 	}
 }
 
+static void scene_load_node_meshes(
+	const aiScene* ai_scene,
+	const aiNode* node,
+	const glm::mat4& parent_transform,
+	const shader_program_t* shader,
+	std::vector<mesh_t>& meshes,
+	glm::vec3& aabb_min,
+	glm::vec3& aabb_max
+)
+{
+	// aiMatrix4x4 is row-major but glm::mat4 is column-major
+	glm::mat4 node_transform = glm::transpose(glm::make_mat4(&node->mTransformation.a1));
+
+	// Combine with parent transform for object space transform
+	glm::mat4 obj_transform = parent_transform * node_transform;
+	glm::mat3 normal_transform = glm::inverseTranspose(glm::mat3(obj_transform));
+
+	for (unsigned int ai_node_mesh_idx = 0;
+		ai_node_mesh_idx < node->mNumMeshes;
+		++ai_node_mesh_idx
+	) {
+		unsigned int ai_scene_mesh_idx = node->mMeshes[ai_node_mesh_idx];
+		const aiMesh* ai_mesh = ai_scene->mMeshes[ai_scene_mesh_idx];
+
+		if (ai_mesh->mPrimitiveTypes != aiPrimitiveType_TRIANGLE) {
+			fprintf(stderr, "mPrimitiveTypes=0x%02X not supported; skipping mesh\n", ai_mesh->mPrimitiveTypes);
+			continue;
+		}
+
+		std::vector<vertex_t> vertices;
+		std::vector<unsigned int> indices;
+
+		// Process vertices
+		vertices.reserve(ai_mesh->mNumVertices);
+		for (unsigned int ai_mesh_vertex_idx = 0;
+			ai_mesh_vertex_idx < ai_mesh->mNumVertices;
+			++ai_mesh_vertex_idx
+		) {
+			vertex_t& vertex = vertices.emplace_back();
+
+			// Transform vertex position in node to object space
+			const aiVector3D& v = ai_mesh->mVertices[ai_mesh_vertex_idx];
+			glm::vec4 v_pos = obj_transform * glm::vec4(v.x, v.y, v.z, 1.0f);
+			vertex.position = glm::vec3(v_pos);
+
+			// Transform normal vector in node to object space
+			if (ai_mesh->HasNormals()) {
+				const aiVector3D& n = ai_mesh->mNormals[ai_mesh_vertex_idx];
+				vertex.normal = glm::normalize(normal_transform * glm::vec3(n.x, n.y, n.z));
+			}
+		}
+
+		// Process vertex indices
+		indices.reserve(ai_mesh->mNumFaces * 3); // Assume triangles
+		for (unsigned int f = 0; f < ai_mesh->mNumFaces; ++f) {
+			const aiFace& face = ai_mesh->mFaces[f];
+			for (unsigned int j = 0; j < face.mNumIndices; ++j) {
+				indices.push_back(face.mIndices[j]);
+			}
+		}
+
+		// Update bounding box
+		for (const vertex_t& v : vertices) {
+			aabb_min = glm::min(aabb_min, v.position);
+			aabb_max = glm::max(aabb_max, v.position);
+		}
+
+		// Process material
+		material_t material;
+		if (ai_mesh->mMaterialIndex < ai_scene->mNumMaterials) {
+			const aiMaterial* ai_mat = ai_scene->mMaterials[ai_mesh->mMaterialIndex];
+			aiColor3D color;
+			float shininess = 0.0f;
+
+			// Populate material colour properties
+			if (ai_mat->Get(AI_MATKEY_COLOR_AMBIENT, color) == AI_SUCCESS) {
+				material.ambient = glm::vec3(color.r, color.g, color.b);
+			}
+			if (ai_mat->Get(AI_MATKEY_COLOR_DIFFUSE, color) == AI_SUCCESS) {
+				material.diffuse = glm::vec3(color.r, color.g, color.b);
+			}
+			if (ai_mat->Get(AI_MATKEY_COLOR_SPECULAR, color) == AI_SUCCESS) {
+				material.specular = glm::vec3(color.r, color.g, color.b);
+			}
+			if (ai_mat->Get(AI_MATKEY_SHININESS, shininess) == AI_SUCCESS) {
+				if (shininess > 0.0f) {
+					material.shininess = shininess;
+				}
+			}
+		}
+
+		// Load mesh
+		mesh_t& mesh = meshes.emplace_back();
+		mesh.material = material;
+		scene_load_mesh(vertices, indices, shader, &mesh);
+	}
+
+	for (unsigned int i = 0; i < node->mNumChildren; ++i) {
+		scene_load_node_meshes(ai_scene, node->mChildren[i], obj_transform, shader, meshes, aabb_min, aabb_max);
+	}
+}
 
 int scene_init(void)
 {
@@ -516,9 +622,13 @@ int scene_init(void)
 	return 0;
 }
 
-int scene_load_resources(void)
+int scene_load_resources(const char* filename)
 {
 	int r;
+	Assimp::Importer importer;
+	const aiScene* ai_scene = nullptr;
+	glm::vec3 aabb_min(FLT_MAX, FLT_MAX, FLT_MAX);
+	glm::vec3 aabb_max(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 
 	// Load shaders
 	r = scene_load_shader_program(
@@ -531,23 +641,49 @@ int scene_load_resources(void)
 		return r;
 	}
 
-	// HACK: Load triangle for testing
-	static std::vector<vertex_t> triangle_vertices;
-	static std::vector<unsigned int> triangle_indices;
-	triangle_vertices = {
-		{ {-0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, 1.0f} },
-		{ { 0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, 1.0f} },
-		{ { 0.0f,  0.5f, 0.0f}, {0.0f, 0.0f, 1.0f} },
-	};
-	triangle_indices = { 0, 1, 2 };
-	scene_load_mesh(triangle_vertices, triangle_indices, &simple_shader, &mesh);
+	// Load assimp scene
+	ai_scene = importer.ReadFile(filename, aiProcessPreset_TargetRealtime_MaxQuality);
+	if (!ai_scene) {
+		fprintf(stderr, "%s: %s\n", filename, importer.GetErrorString());
+		r = -1;
+		goto error;
+	}
+	scene_load_node_meshes(ai_scene, ai_scene->mRootNode, glm::mat4(1.0f), &simple_shader, meshes, aabb_min, aabb_max);
 
-	return 0;
+	// Update camera state according to bounding box
+	if (!meshes.empty()) {
+		glm::vec3 aabb_center;
+		glm::vec3 aabb_extent;
+		float radius;
+
+		aabb_center = (aabb_min + aabb_max) * 0.5f;
+		aabb_extent = aabb_max - aabb_min;
+		radius = glm::max(glm::max(aabb_extent.x, aabb_extent.y), aabb_extent.z) * 1.5f;
+		if (radius < 0.001f) {
+			radius = 1.0f;
+		}
+
+		camera_target = aabb_center;
+		camera_radius = radius;
+		camera_radius_initial = radius;
+	}
+
+	r = 0;
+	goto exit;
+
+error:
+	scene_unload_resources();
+
+exit:
+	return r;
 }
 
 void scene_unload_resources(void)
 {
-	scene_unload_mesh(&mesh);
+	for (mesh_t& mesh : meshes) {
+		scene_unload_mesh(&mesh);
+	}
+	meshes.clear();
 	scene_unload_shader_program(&simple_shader);
 }
 
@@ -591,16 +727,16 @@ void scene_render(void)
 	glProgramUniform3fv(simple_shader.program, simple_shader.uniform("light.diffuse"), 1, glm::value_ptr(light_diffuse));
 	glProgramUniform3fv(simple_shader.program, simple_shader.uniform("light.specular"), 1, glm::value_ptr(light_specular));
 
-	// Uniform material parameters
-	glProgramUniform3fv(simple_shader.program, simple_shader.uniform("material.ambient"), 1, glm::value_ptr(mesh.material.ambient));
-	glProgramUniform3fv(simple_shader.program, simple_shader.uniform("material.diffuse"), 1, glm::value_ptr(mesh.material.diffuse));
-	glProgramUniform3fv(simple_shader.program, simple_shader.uniform("material.specular"), 1, glm::value_ptr(mesh.material.specular));
-	glProgramUniform1f(simple_shader.program,  simple_shader.uniform("material.shininess"), mesh.material.shininess);
-
-	// Render mesh
+	// Render meshes
 	glUseProgram(simple_shader.program);
-	glBindVertexArray(mesh.vao);
-	glDrawElements(GL_TRIANGLES, mesh.index_count, GL_UNSIGNED_INT, 0);
+	for (mesh_t& mesh : meshes) {
+		glProgramUniform3fv(simple_shader.program, simple_shader.uniform("material.ambient"), 1, glm::value_ptr(mesh.material.ambient));
+		glProgramUniform3fv(simple_shader.program, simple_shader.uniform("material.diffuse"), 1, glm::value_ptr(mesh.material.diffuse));
+		glProgramUniform3fv(simple_shader.program, simple_shader.uniform("material.specular"), 1, glm::value_ptr(mesh.material.specular));
+		glProgramUniform1f(simple_shader.program, simple_shader.uniform("material.shininess"), mesh.material.shininess);
+		glBindVertexArray(mesh.vao);
+		glDrawElements(GL_TRIANGLES, mesh.index_count, GL_UNSIGNED_INT, 0);
+	}
 
 	// Cleanup
 	glBindVertexArray(0);
