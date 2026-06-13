@@ -29,6 +29,8 @@ void scene_render(void);
 
 void scene_set_wireframe(bool enabled);
 
+void scene_set_normals(bool enabled);
+
 void scene_rotate(float delta_yaw, float delta_pitch);
 
 void scene_zoom(float delta);

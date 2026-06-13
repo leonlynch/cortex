@@ -16,6 +16,7 @@
 
 static bool scene_is_paused = false;
 static bool render_wireframe = false;
+static bool render_normals = false;
 static bool is_fullscreen = false;
 static int windowed_x;
 static int windowed_y;
@@ -49,6 +50,11 @@ static void glfw_key_func(GLFWwindow* window, int key, int scancode, int action,
 	if (key == GLFW_KEY_B && action == GLFW_PRESS) { // not 'w', to allow WASD later
 		render_wireframe ^= true;
 		scene_set_wireframe(render_wireframe);
+	}
+
+	if (key == GLFW_KEY_N && action == GLFW_PRESS) {
+		render_normals ^= true;
+		scene_set_normals(render_normals);
 	}
 
 	if (key == GLFW_KEY_F && action == GLFW_PRESS) {

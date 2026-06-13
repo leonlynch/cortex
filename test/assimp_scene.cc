@@ -41,6 +41,7 @@
 static bool ready = false;
 static int width = 0;
 static int height = 0;
+static bool render_normals = false;
 
 // Camera state
 static glm::quat camera_orientation(1.0f, 0.0f, 0.0f, 0.0f);
@@ -97,6 +98,14 @@ struct material_t {
 	float shininess = 25.0f;
 };
 
+struct normals_t {
+	GLuint vao = 0;
+
+	GLuint vbo = 0;
+	GLuint vbo_binding = 0;
+	GLsizei vertex_count = 0;
+};
+
 struct mesh_t {
 	GLuint vao = 0;
 
@@ -110,6 +119,8 @@ struct mesh_t {
 	material_t material;
 
 	const shader_program_t* shader = nullptr;
+
+	normals_t normals;
 };
 
 // Shader programs
@@ -456,6 +467,46 @@ static void scene_update_mesh(
 	printf("%s(); vao=%u; vbo=%u[%zu]; ibo=%u[%zu]\n", __FUNCTION__, mesh->vao, mesh->vbo, vertices.size(), mesh->ibo, indices.size());
 }
 
+static void scene_load_mesh_normals(
+	const std::vector<vertex_t>& vertices,
+	const shader_program_t* shader,
+	normals_t* normals)
+{
+	// VAO layout:
+	// - VBO #0 for position
+	// - No IBO
+
+	// Create vertex array object and vertex buffer object
+	glCreateVertexArrays(1, &normals->vao);
+	glCreateBuffers(1, &normals->vbo);
+
+	// Bind vertex buffer to vertex array object
+	glVertexArrayVertexBuffer(normals->vao, normals->vbo_binding, normals->vbo, 0, sizeof(glm::vec3));
+
+	// Setup format and attribute binding
+	GLuint pos_loc = shader->attribute("v_position");
+	glEnableVertexArrayAttrib(normals->vao, pos_loc);
+	glVertexArrayAttribBinding(normals->vao, pos_loc, normals->vbo_binding);
+	glVertexArrayAttribFormat(normals->vao, pos_loc, 3, GL_FLOAT, GL_FALSE, 0);
+
+	// Generate vertices representing normal lines
+	using line_type = std::pair<glm::vec3,glm::vec3>;
+	std::vector<line_type> normal_lines;
+	normal_lines.reserve(vertices.size());
+	for (auto&& vertex : vertices) {
+		normal_lines.emplace_back(
+			vertex.position,
+			vertex.position + (glm::normalize(vertex.normal) * 0.3f)
+		);
+	}
+
+	// Update vertex buffer object
+	glNamedBufferData(normals->vbo, normal_lines.size() * sizeof(line_type), normal_lines.data(), GL_STATIC_DRAW);
+	normals->vertex_count = normal_lines.size() * 2; // two vertices per line
+
+	printf("%s(); vao=%u; vbo=%u[%zu]\n", __FUNCTION__, normals->vao, normals->vbo, normal_lines.size());
+}
+
 static void scene_unload_mesh(mesh_t* mesh)
 {
 	if (mesh->vao) {
@@ -471,6 +522,16 @@ static void scene_unload_mesh(mesh_t* mesh)
 	if (mesh->ibo) {
 		glDeleteBuffers(1, &mesh->ibo);
 		mesh->ibo = 0;
+	}
+
+	if (mesh->normals.vao) {
+		glDeleteVertexArrays(1, &mesh->normals.vao);
+		mesh->normals.vao = 0;
+	}
+
+	if (mesh->normals.vbo) {
+		glDeleteBuffers(1, &mesh->normals.vbo);
+		mesh->normals.vbo = 0;
 	}
 }
 
@@ -604,6 +665,10 @@ static void scene_load_node_meshes(
 		mesh_t& mesh = meshes.emplace_back();
 		mesh.material = material;
 		scene_load_mesh(vertices, indices, shader, &mesh);
+
+		if (has_normals) {
+			scene_load_mesh_normals(vertices, shader, &mesh.normals);
+		}
 	}
 
 	for (unsigned int i = 0; i < node->mNumChildren; ++i) {
@@ -795,6 +860,35 @@ void scene_render(void)
 		glDrawElements(GL_TRIANGLES, mesh.index_count, GL_UNSIGNED_INT, 0);
 	}
 
+	// Render normal vectors
+	if (render_normals) {
+		const shader_program_t* normal_shader = &simple_shader;
+		glm::vec3 normals_color(1.0f, 1.0f, 1.0f);
+
+		// Uniform matrices for normal lines
+		glProgramUniformMatrix4fv(normal_shader->program, normal_shader->uniform("m_modelview"), 1, GL_FALSE, glm::value_ptr(m_modelview));
+		glProgramUniformMatrix3fv(normal_shader->program, normal_shader->uniform("m_normal"), 1, GL_FALSE, glm::value_ptr(m_normal));
+		glProgramUniformMatrix4fv(normal_shader->program, normal_shader->uniform("m_view"), 1, GL_FALSE, glm::value_ptr(m_view));
+		glProgramUniformMatrix4fv(normal_shader->program, normal_shader->uniform("m_mvp"), 1, GL_FALSE, glm::value_ptr(m_mvp));
+
+		// Update uniform light parameters for normal lines
+		glProgramUniform3fv(normal_shader->program, normal_shader->uniform("light.ambient"), 1, glm::value_ptr(normals_color));
+		glProgramUniform3fv(normal_shader->program, normal_shader->uniform("light.diffuse"), 1, glm::value_ptr(normals_color));
+
+		// Update uniform material parameters for normal lines
+		glProgramUniform3fv(normal_shader->program, normal_shader->uniform("material.ambient"), 1, glm::value_ptr(normals_color));
+		glProgramUniform3fv(normal_shader->program, normal_shader->uniform("material.diffuse"), 1, glm::value_ptr(normals_color));
+
+		// Render normal lines
+		glUseProgram(normal_shader->program);
+		for (mesh_t& mesh : meshes) {
+			if (mesh.normals.vao) {
+				glBindVertexArray(mesh.normals.vao);
+				glDrawArrays(GL_LINES, 0, mesh.normals.vertex_count);
+			}
+		}
+	}
+
 	// Cleanup
 	glBindVertexArray(0);
 	glUseProgram(0);
@@ -803,6 +897,11 @@ void scene_render(void)
 void scene_set_wireframe(bool enabled)
 {
 	glPolygonMode(GL_FRONT_AND_BACK, enabled ? GL_LINE : GL_FILL);
+}
+
+void scene_set_normals(bool enabled)
+{
+	render_normals = enabled;
 }
 
 void scene_rotate(float delta_yaw, float delta_pitch)
