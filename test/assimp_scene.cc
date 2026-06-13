@@ -48,6 +48,12 @@ static float camera_radius = 2.0f;
 static float camera_radius_initial = 2.0f;
 static glm::vec3 camera_target(0.0f, 0.0f, 0.0f);
 
+// Light state (world space)
+static glm::vec4 light_position(15.0f, 15.0f, 15.0f, 1.0f);
+static glm::vec3 light_ambient(0.2f, 0.2f, 0.2f);
+static glm::vec3 light_diffuse(0.8f, 0.8f, 0.8f);
+static glm::vec3 light_specular(1.0f, 1.0f, 1.0f);
+
 struct shader_program_t {
 	GLuint program = 0;
 	GLuint vertex_shader = 0;
@@ -696,6 +702,14 @@ int scene_load_resources(const char* filename)
 	}
 	scene_load_node_meshes(ai_scene, ai_scene->mRootNode, glm::mat4(1.0f), &simple_shader, meshes, aabb_min, aabb_max);
 
+	if (ai_scene->mNumLights > 0) {
+		const aiLight* light = ai_scene->mLights[0];
+		light_position = glm::vec4(light->mPosition.x, light->mPosition.y, light->mPosition.z, 1.0f);
+		light_ambient  = glm::vec3(light->mColorAmbient.r, light->mColorAmbient.g, light->mColorAmbient.b);
+		light_diffuse  = glm::vec3(light->mColorDiffuse.r, light->mColorDiffuse.g, light->mColorDiffuse.b);
+		light_specular = glm::vec3(light->mColorSpecular.r, light->mColorSpecular.g, light->mColorSpecular.b);
+	}
+
 	// Update camera state according to bounding box
 	if (!meshes.empty()) {
 		glm::vec3 aabb_center;
@@ -765,10 +779,6 @@ void scene_render(void)
 	glProgramUniformMatrix4fv(simple_shader.program, simple_shader.uniform("m_mvp"), 1, GL_FALSE, glm::value_ptr(m_mvp));
 
 	// Uniform light parameters (world space)
-	glm::vec4 light_position = glm::vec4(15.0f, 15.0f, 15.0f, 1.0f);
-	glm::vec3 light_ambient  = glm::vec3(0.2f, 0.2f, 0.2f);
-	glm::vec3 light_diffuse  = glm::vec3(0.8f, 0.8f, 0.8f);
-	glm::vec3 light_specular = glm::vec3(1.0f, 1.0f, 1.0f);
 	glProgramUniform4fv(simple_shader.program, simple_shader.uniform("light.position"), 1, glm::value_ptr(light_position));
 	glProgramUniform3fv(simple_shader.program, simple_shader.uniform("light.ambient"), 1, glm::value_ptr(light_ambient));
 	glProgramUniform3fv(simple_shader.program, simple_shader.uniform("light.diffuse"), 1, glm::value_ptr(light_diffuse));
