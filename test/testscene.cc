@@ -867,14 +867,15 @@ void scene_render(enum scene_demo_t scene_demo)
 	glm::mat4 m_model_rotate_z = glm::rotate(glm::mat4(1.0f), glm::radians((float)tick / 4.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 	glm::mat4 m_model = m_model_rotate_z * m_model_rotate_y * m_model_rotate_x;
 	glm::mat4 m_modelview = m_view * m_model;
-	glm::mat4 m_mvp = m_projection * m_modelview;
 	glm::mat3 m_normal = glm::inverseTranspose(glm::mat3(m_modelview));
+	glm::mat4 m_mvp = m_projection * m_modelview;
 
-	glProgramUniformMatrix4fv(current_shader->program, current_shader->uniform("m_mvp"), 1, GL_FALSE, glm::value_ptr(m_mvp));
 	glProgramUniformMatrix4fv(current_shader->program, current_shader->uniform("m_modelview"), 1, GL_FALSE, glm::value_ptr(m_modelview));
 	glProgramUniformMatrix3fv(current_shader->program, current_shader->uniform("m_normal"), 1, GL_FALSE, glm::value_ptr(m_normal));
+	glProgramUniformMatrix4fv(current_shader->program, current_shader->uniform("m_view"), 1, GL_FALSE, glm::value_ptr(m_view));
+	glProgramUniformMatrix4fv(current_shader->program, current_shader->uniform("m_mvp"), 1, GL_FALSE, glm::value_ptr(m_mvp));
 
-	// Uniform light parameters
+	// Uniform light parameters (world space)
 	glm::vec4 light_position = glm::vec4(15.0f, 15.0f, 15.0f, 1.0f);
 	glm::vec3 light_ambient = glm::vec3(0.2f, 0.2f, 0.2f);
 	glm::vec3 light_diffuse = glm::vec3(0.8f, 0.8f, 0.8f);
@@ -926,9 +927,10 @@ void scene_render(enum scene_demo_t scene_demo)
 		const shader_program_t* normal_shader = &simple_shader;
 
 		// Uniform matrices for normal lines
-		glProgramUniformMatrix4fv(normal_shader->program, normal_shader->uniform("m_mvp"), 1, GL_FALSE, glm::value_ptr(m_mvp));
 		glProgramUniformMatrix4fv(normal_shader->program, normal_shader->uniform("m_modelview"), 1, GL_FALSE, glm::value_ptr(m_modelview));
 		glProgramUniformMatrix3fv(normal_shader->program, normal_shader->uniform("m_normal"), 1, GL_FALSE, glm::value_ptr(m_normal));
+		glProgramUniformMatrix4fv(normal_shader->program, normal_shader->uniform("m_view"), 1, GL_FALSE, glm::value_ptr(m_view));
+		glProgramUniformMatrix4fv(normal_shader->program, normal_shader->uniform("m_mvp"), 1, GL_FALSE, glm::value_ptr(m_mvp));
 
 		// Update uniform light parameters for normal lines
 		light_ambient = glm::vec3(1.0f, 1.0f, 1.0f);

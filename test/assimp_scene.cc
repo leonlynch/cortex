@@ -756,14 +756,15 @@ void scene_render(void)
 	glm::mat4 m_projection = glm::perspective(glm::radians(45.0f), width / (float)height, 0.01f * camera_radius, 10.0f * camera_radius);
 	glm::mat4 m_view = glm::lookAt(camera_pos, camera_target, camera_up);
 	glm::mat4 m_modelview = m_view;
-	glm::mat4 m_mvp = m_projection * m_modelview;
 	glm::mat3 m_normal = glm::inverseTranspose(glm::mat3(m_modelview));
+	glm::mat4 m_mvp = m_projection * m_modelview;
 
-	glProgramUniformMatrix4fv(simple_shader.program, simple_shader.uniform("m_mvp"), 1, GL_FALSE, glm::value_ptr(m_mvp));
 	glProgramUniformMatrix4fv(simple_shader.program, simple_shader.uniform("m_modelview"), 1, GL_FALSE, glm::value_ptr(m_modelview));
 	glProgramUniformMatrix3fv(simple_shader.program, simple_shader.uniform("m_normal"), 1, GL_FALSE, glm::value_ptr(m_normal));
+	glProgramUniformMatrix4fv(simple_shader.program, simple_shader.uniform("m_view"), 1, GL_FALSE, glm::value_ptr(m_view));
+	glProgramUniformMatrix4fv(simple_shader.program, simple_shader.uniform("m_mvp"), 1, GL_FALSE, glm::value_ptr(m_mvp));
 
-	// Uniform light parameters
+	// Uniform light parameters (world space)
 	glm::vec4 light_position = glm::vec4(15.0f, 15.0f, 15.0f, 1.0f);
 	glm::vec3 light_ambient  = glm::vec3(0.2f, 0.2f, 0.2f);
 	glm::vec3 light_diffuse  = glm::vec3(0.8f, 0.8f, 0.8f);

@@ -9,9 +9,10 @@
 
 #version 460 core
 
-uniform mat4 m_mvp;
 uniform mat4 m_modelview;
 uniform mat3 m_normal;
+uniform mat4 m_view;
+uniform mat4 m_mvp;
 
 struct light_t {
 	vec4 position;
@@ -41,7 +42,7 @@ void main()
 	// compute eye space vectors
 	vec4 position = m_modelview * vec4(v_position, 1.0);
 	f_n = m_normal * v_normal; // normal vector
-	f_l = vec3(light.position - position); // light vector
+	f_l = vec3(m_view * light.position - position); // light vector
 	f_v = vec3(-position); // viewer vector
 
 	gl_Position = m_mvp * vec4(v_position, 1.0);
