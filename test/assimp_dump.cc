@@ -12,13 +12,37 @@
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 
+#include <cctype>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 #include <set>
 #include <type_traits>
 #include <utility>
+
+static std::string uri_decode_noscheme(const aiString& uri)
+{
+	std::string decoded;
+	const char* str = uri.data; // aiString is null-terminated
+
+	while (*str) {
+		if (str[0] == '%' &&
+			std::isxdigit(static_cast<unsigned char>(str[1])) &&
+			std::isxdigit(static_cast<unsigned char>(str[2]))
+		) {
+			char hex[3] = { str[1], str[2], '\0' };
+			decoded += static_cast<char>(std::strtol(hex, nullptr, 16));
+			str += 3;
+		} else {
+			decoded += *str;
+			str++;
+		}
+	}
+
+	return decoded;
+}
 
 template <typename T>
 static void print_vector(const T& v)
@@ -357,7 +381,14 @@ static void print_material(const struct aiMaterial* material)
 				case aiPTI_String: {
 					aiString s;
 					material->Get(property->mKey.C_Str(), property->mSemantic, property->mIndex, s);
-					std::printf("'%s'\n", s.C_Str());
+
+					// Multiple formats, including glTF and Collada, use URI encoding
+					// for texture file paths
+					if (std::strcmp(property->mKey.C_Str(), _AI_MATKEY_TEXTURE_BASE) == 0) {
+						std::printf("'%s'\n", uri_decode_noscheme(s).c_str());
+					} else {
+						std::printf("'%s'\n", s.C_Str());
+					}
 					break;
 				}
 

@@ -9,10 +9,12 @@
 
 #include "assimp_scene.h"
 
+#include <cctype>
+#include <cfloat>
 #include <cstddef>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
-#include <cfloat>
 
 #include <map>
 #include <string>
@@ -551,6 +553,28 @@ static void scene_unload_shader_program(shader_program_t* shader_program)
 	}
 }
 
+static std::string uri_decode_noscheme(const aiString& uri)
+{
+	std::string decoded;
+	const char* str = uri.data; // aiString is null-terminated
+
+	while (*str) {
+		if (str[0] == '%' &&
+			std::isxdigit(static_cast<unsigned char>(str[1])) &&
+			std::isxdigit(static_cast<unsigned char>(str[2]))
+		) {
+			char hex[3] = { str[1], str[2], '\0' };
+			decoded += static_cast<char>(std::strtol(hex, nullptr, 16));
+			str += 3;
+		} else {
+			decoded += *str;
+			str++;
+		}
+	}
+
+	return decoded;
+}
+
 static void scene_load_node_meshes(
 	const aiScene* ai_scene,
 	const aiNode* node,
@@ -659,6 +683,26 @@ static void scene_load_node_meshes(
 					material.shininess = shininess;
 				}
 			}
+
+			// Print decoded texture paths
+			aiString texture_path;
+			for (int t = 0; t <= AI_TEXTURE_TYPE_MAX; ++t) {
+				aiTextureType texture_type = static_cast<aiTextureType>(t);
+				unsigned int texture_count = ai_mat->GetTextureCount(texture_type);
+
+				for (unsigned int i = 0; i < texture_count; ++i) {
+					if (ai_mat->GetTexture(texture_type, i, &texture_path) == AI_SUCCESS) {
+						// Multiple formats, including glTF and Collada, use URI encoding
+						// for texture file paths
+						cortex_gldebug_msg("Material %s[%u] texture: '%s'",
+							aiTextureTypeToString(texture_type),
+							i,
+							uri_decode_noscheme(texture_path).c_str()
+						);
+					}
+				}
+			}
+
 		}
 
 		// Load mesh
