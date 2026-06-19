@@ -9,13 +9,18 @@
 
 #include "assimp_scene.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 #include <cctype>
 #include <cfloat>
+#include <cmath>
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
+#include <filesystem>
 #include <map>
 #include <string>
 #include <vector>
@@ -108,6 +113,11 @@ struct normals_t {
 	GLsizei vertex_count = 0;
 };
 
+struct texture_unit_t {
+	GLuint unit = 0;
+	GLuint texture = 0;
+};
+
 struct mesh_t {
 	GLuint vao = 0;
 
@@ -119,7 +129,7 @@ struct mesh_t {
 	GLsizei index_count = 0;
 
 	material_t material;
-
+	std::vector<texture_unit_t> textures;
 	const shader_program_t* shader = nullptr;
 
 	normals_t normals;
@@ -127,6 +137,7 @@ struct mesh_t {
 
 // Shader programs
 static shader_program_t simple_shader;
+static shader_program_t textured_shader;
 
 // Scene meshes
 static std::vector<mesh_t> meshes;
@@ -526,6 +537,14 @@ static void scene_unload_mesh(mesh_t* mesh)
 		mesh->ibo = 0;
 	}
 
+	for (auto& t : mesh->textures) {
+		if (t.texture) {
+			glDeleteTextures(1, &t.texture);
+			t.texture = 0;
+		}
+	}
+	mesh->textures.clear();
+
 	if (mesh->normals.vao) {
 		glDeleteVertexArrays(1, &mesh->normals.vao);
 		mesh->normals.vao = 0;
@@ -575,12 +594,128 @@ static std::string uri_decode_noscheme(const aiString& uri)
 	return decoded;
 }
 
+static GLuint scene_load_texture(
+	const aiScene* ai_scene,
+	const aiString& ai_path,
+	const std::string& asset_dir,
+	GLenum internal_format
+)
+{
+	int width = 0;
+	int height = 0;
+	int channels = 0;
+	unsigned char* data = nullptr;
+	GLenum format;
+	GLenum data_type;
+	bool data_from_stbi = false;
+
+	cortex_gldebug_msg("Loading texture: %s", ai_path.C_Str());
+
+	if (ai_path.data[0] == '*') {
+		// Embedded texture path has format "*<index>"
+		int idx = std::stoi(ai_path.data + 1);
+		if (idx < 0 || static_cast<unsigned int>(idx) >= ai_scene->mNumTextures) {
+			fprintf(stderr, "Embedded texture index %d out of range\n", idx);
+			return 0;
+		}
+		const aiTexture* ai_tex = ai_scene->mTextures[idx];
+
+		if (ai_tex->mHeight == 0) {
+			// Compressed texture
+			// pcData contains bytes; mWidth indicates number of bytes
+			data = stbi_load_from_memory(
+				reinterpret_cast<const unsigned char*>(ai_tex->pcData),
+				static_cast<int>(ai_tex->mWidth),
+				&width,
+				&height,
+				&channels,
+				STBI_rgb_alpha
+			);
+			if (!data) {
+				fprintf(stderr, "Failed to decode embedded texture %d\n", idx);
+				return 0;
+			}
+			format = GL_RGBA;
+			data_type = GL_UNSIGNED_BYTE;
+			data_from_stbi = true;
+
+		} else {
+			// Uncompressed texture
+			// Check achFormatHint for data packing; default is ARGB8888
+			// The documentation of achFormatHint appears to contradict the
+			// implementation of some Assimp format converters, but assets
+			// using uncompressed textures are so rare that it is hard to know
+			// whether the Assimp documentation is accurate or not. This
+			// implementation follows the Assimp documentation for now.
+			if (ai_tex->achFormatHint[0] == '\0' ||
+				ai_tex->CheckFormat("argb8888")
+			) {
+				format = GL_BGRA;
+				data_type = GL_UNSIGNED_BYTE;
+			} else if (ai_tex->CheckFormat("bgra8888")) {
+				format = GL_BGRA;
+				data_type = GL_UNSIGNED_INT_8_8_8_8;
+			} else if (ai_tex->CheckFormat("rgba8888")) {
+				format = GL_RGBA;
+				data_type = GL_UNSIGNED_INT_8_8_8_8;
+			} else if (ai_tex->CheckFormat("rgba5650")) {
+				format = GL_RGB;
+				data_type = GL_UNSIGNED_SHORT_5_6_5;
+			} else {
+				fprintf(stderr, "Unsupported embedded texture format: %s\n",
+					ai_tex->achFormatHint);
+				return 0;
+			}
+			width = static_cast<int>(ai_tex->mWidth);
+			height = static_cast<int>(ai_tex->mHeight);
+			data = reinterpret_cast<unsigned char*>(ai_tex->pcData);
+		}
+
+	} else {
+		// File texture path is relative to asset directory
+		// Multiple formats, including glTF and Collada, use URI encoding
+		std::string path = asset_dir + uri_decode_noscheme(ai_path);
+		data = stbi_load(path.c_str(), &width, &height, &channels, STBI_rgb_alpha);
+		if (!data) {
+			fprintf(stderr, "Failed to load texture: %s\n", path.c_str());
+			return 0;
+		}
+		format = GL_RGBA;
+		data_type = GL_UNSIGNED_BYTE;
+		data_from_stbi = true;
+	}
+
+	GLint levels = 1 + static_cast<GLint>(std::floor(std::log2(width > height ? width : height)));
+
+	GLuint texture;
+	glCreateTextures(GL_TEXTURE_2D, 1, &texture);
+	glTextureStorage2D(texture, levels, internal_format, width, height);
+
+	glTextureSubImage2D(texture, 0, 0, 0, width, height, format, data_type, data);
+	if (data_from_stbi) {
+		stbi_image_free(data);
+	}
+
+	glGenerateTextureMipmap(texture);
+	glTextureParameteri(texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTextureParameteri(texture, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTextureParameteri(texture, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+	GLfloat max_anisotropy;
+	glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &max_anisotropy);
+	glTextureParameterf(texture, GL_TEXTURE_MAX_ANISOTROPY, max_anisotropy);
+
+	cortex_gldebug_msg("Texture %u loaded: %dx%d; levels=%d", texture,  width, height, levels);
+	return texture;
+}
+
 static void scene_load_node_meshes(
 	const aiScene* ai_scene,
 	const aiNode* node,
 	const glm::mat4& parent_transform,
-	const shader_program_t* shader,
 	std::vector<mesh_t>& meshes,
+	const std::string& asset_dir,
 	glm::vec3& aabb_min,
 	glm::vec3& aabb_max
 )
@@ -663,6 +798,8 @@ static void scene_load_node_meshes(
 
 		// Process material
 		material_t material;
+		GLuint diffuse_texture = 0;
+		GLuint specular_texture = 0;
 		if (ai_mesh->mMaterialIndex < ai_scene->mNumMaterials) {
 			const aiMaterial* ai_mat = ai_scene->mMaterials[ai_mesh->mMaterialIndex];
 			aiColor3D color;
@@ -703,20 +840,46 @@ static void scene_load_node_meshes(
 				}
 			}
 
+			// Populate textures
+			if (ai_mat->GetTexture(aiTextureType_DIFFUSE, 0, &texture_path) == AI_SUCCESS) {
+				diffuse_texture = scene_load_texture(ai_scene, texture_path, asset_dir, GL_SRGB8_ALPHA8);
+			}
+			if (ai_mat->GetTexture(aiTextureType_SPECULAR, 0, &texture_path) == AI_SUCCESS) {
+				specular_texture = scene_load_texture(ai_scene, texture_path, asset_dir, GL_SRGB8_ALPHA8);
+			}
+		}
+
+		// Select shader and build texture list
+		const shader_program_t* selected_shader;
+		std::vector<texture_unit_t> mesh_textures;
+		if (diffuse_texture) { // Specular is texture is optional
+			selected_shader = &textured_shader;
+			mesh_textures.push_back({ textured_shader.sampler_unit("material_diffuse"), diffuse_texture });
+			if (specular_texture) {
+				mesh_textures.push_back({ textured_shader.sampler_unit("material_specular"), specular_texture });
+			}
+
+		} else {
+			selected_shader = &simple_shader;
+
+			// Cleanup textures
+			if (diffuse_texture) { glDeleteTextures(1, &diffuse_texture); }
+			if (specular_texture) { glDeleteTextures(1, &specular_texture); }
 		}
 
 		// Load mesh
 		mesh_t& mesh = meshes.emplace_back();
 		mesh.material = material;
-		scene_load_mesh(vertices, indices, shader, &mesh);
+		mesh.textures = std::move(mesh_textures);
+		scene_load_mesh(vertices, indices, selected_shader, &mesh);
 
 		if (has_normals) {
-			scene_load_mesh_normals(vertices, shader, &mesh.normals);
+			scene_load_mesh_normals(vertices, selected_shader, &mesh.normals);
 		}
 	}
 
 	for (unsigned int i = 0; i < node->mNumChildren; ++i) {
-		scene_load_node_meshes(ai_scene, node->mChildren[i], obj_transform, shader, meshes, aabb_min, aabb_max);
+		scene_load_node_meshes(ai_scene, node->mChildren[i], obj_transform, meshes, asset_dir, aabb_min, aabb_max);
 	}
 }
 
@@ -786,6 +949,7 @@ int scene_init(void)
 int scene_load_resources(const char* filename)
 {
 	int r;
+	std::string asset_dir;
 	Assimp::Importer importer;
 	const aiScene* ai_scene = nullptr;
 	glm::vec3 aabb_min(FLT_MAX, FLT_MAX, FLT_MAX);
@@ -798,18 +962,45 @@ int scene_load_resources(const char* filename)
 		&simple_shader
 	);
 	if (r) {
-		fprintf(stderr, "Failed to load shader program\n");
+		fprintf(stderr, "Failed to load simple shader program\n");
 		return r;
 	}
 
-	// Load assimp scene
+	r = scene_load_shader_program(
+		"test/textured.vert.glsl",
+		"test/textured.frag.glsl",
+		&textured_shader
+	);
+	if (r) {
+		fprintf(stderr, "Failed to load textured shader program\n");
+		return r;
+	}
+
+	// Extract asset directory for resolving relative texture paths
+	{
+		auto asset_path = std::filesystem::path(filename).parent_path();
+		if (asset_path.empty()) {
+			asset_dir = "./";
+		} else {
+			asset_dir = asset_path.string() + "/";
+		}
+	}
+
+	// Load Assimp scene
 	ai_scene = importer.ReadFile(filename, aiProcessPreset_TargetRealtime_MaxQuality);
 	if (!ai_scene) {
 		fprintf(stderr, "%s: %s\n", filename, importer.GetErrorString());
 		r = -1;
 		goto error;
 	}
-	scene_load_node_meshes(ai_scene, ai_scene->mRootNode, glm::mat4(1.0f), &simple_shader, meshes, aabb_min, aabb_max);
+
+	// Assimp converts texture coordinates to its bottom-left UV convention.
+	// However, image data (both files and embedded) starts at the top left and
+	// therefore stbi must flip images vertically during loading to align with
+	// Assimp's convention.
+	stbi_set_flip_vertically_on_load(1);
+
+	scene_load_node_meshes(ai_scene, ai_scene->mRootNode, glm::mat4(1.0f), meshes, asset_dir, aabb_min, aabb_max);
 
 	if (ai_scene->mNumLights > 0) {
 		const aiLight* light = ai_scene->mLights[0];
@@ -854,6 +1045,7 @@ void scene_unload_resources(void)
 	}
 	meshes.clear();
 	scene_unload_shader_program(&simple_shader);
+	scene_unload_shader_program(&textured_shader);
 }
 
 void scene_resize(int _width, int _height)
@@ -873,7 +1065,7 @@ void scene_render(void)
 
 	glViewport(0, 0, width, height);
 
-	// Build view matrix from camera state
+	// Build matrices from camera state
 	glm::vec3 camera_pos = camera_target + camera_orientation * glm::vec3(0.0f, 0.0f, camera_radius);
 	glm::vec3 camera_up  = camera_orientation * glm::vec3(0.0f, 1.0f, 0.0f);
 	glm::mat4 m_projection = glm::perspective(glm::radians(45.0f), width / (float)height, 0.01f * camera_radius, 10.0f * camera_radius);
@@ -882,24 +1074,46 @@ void scene_render(void)
 	glm::mat3 m_normal = glm::inverseTranspose(glm::mat3(m_modelview));
 	glm::mat4 m_mvp = m_projection * m_modelview;
 
-	glProgramUniformMatrix4fv(simple_shader.program, simple_shader.uniform("m_modelview"), 1, GL_FALSE, glm::value_ptr(m_modelview));
-	glProgramUniformMatrix3fv(simple_shader.program, simple_shader.uniform("m_normal"), 1, GL_FALSE, glm::value_ptr(m_normal));
-	glProgramUniformMatrix4fv(simple_shader.program, simple_shader.uniform("m_view"), 1, GL_FALSE, glm::value_ptr(m_view));
-	glProgramUniformMatrix4fv(simple_shader.program, simple_shader.uniform("m_mvp"), 1, GL_FALSE, glm::value_ptr(m_mvp));
+	for (const shader_program_t* shader : { &simple_shader, &textured_shader }) {
+		// Uniform matrices
+		glProgramUniformMatrix4fv(shader->program, shader->uniform("m_modelview"), 1, GL_FALSE, glm::value_ptr(m_modelview));
+		glProgramUniformMatrix3fv(shader->program, shader->uniform("m_normal"), 1, GL_FALSE, glm::value_ptr(m_normal));
+		glProgramUniformMatrix4fv(shader->program, shader->uniform("m_view"), 1, GL_FALSE, glm::value_ptr(m_view));
+		glProgramUniformMatrix4fv(shader->program, shader->uniform("m_mvp"), 1, GL_FALSE, glm::value_ptr(m_mvp));
 
-	// Uniform light parameters (world space)
-	glProgramUniform4fv(simple_shader.program, simple_shader.uniform("light.position"), 1, glm::value_ptr(light_position));
-	glProgramUniform3fv(simple_shader.program, simple_shader.uniform("light.ambient"), 1, glm::value_ptr(light_ambient));
-	glProgramUniform3fv(simple_shader.program, simple_shader.uniform("light.diffuse"), 1, glm::value_ptr(light_diffuse));
-	glProgramUniform3fv(simple_shader.program, simple_shader.uniform("light.specular"), 1, glm::value_ptr(light_specular));
+		// Uniform light parameters
+		glProgramUniform4fv(shader->program, shader->uniform("light.position"), 1, glm::value_ptr(light_position));
+		glProgramUniform3fv(shader->program, shader->uniform("light.ambient"), 1, glm::value_ptr(light_ambient));
+		glProgramUniform3fv(shader->program, shader->uniform("light.diffuse"), 1, glm::value_ptr(light_diffuse));
+		glProgramUniform3fv(shader->program, shader->uniform("light.specular"), 1, glm::value_ptr(light_specular));
+	}
 
 	// Render meshes
-	glUseProgram(simple_shader.program);
-	for (mesh_t& mesh : meshes) {
-		glProgramUniform3fv(simple_shader.program, simple_shader.uniform("material.ambient"), 1, glm::value_ptr(mesh.material.ambient));
-		glProgramUniform3fv(simple_shader.program, simple_shader.uniform("material.diffuse"), 1, glm::value_ptr(mesh.material.diffuse));
-		glProgramUniform3fv(simple_shader.program, simple_shader.uniform("material.specular"), 1, glm::value_ptr(mesh.material.specular));
-		glProgramUniform1f(simple_shader.program, simple_shader.uniform("material.shininess"), mesh.material.shininess);
+	for (const auto& mesh : meshes) {
+		const shader_program_t* shader = mesh.shader;
+		const material_t* material = &mesh.material;
+
+		// Uniform material parameters
+		if (shader->has_uniform("material.ambient")) {
+			glProgramUniform3fv(shader->program, shader->uniform("material.ambient"), 1, glm::value_ptr(material->ambient));
+		}
+		if (shader->has_uniform("material.diffuse")) {
+			glProgramUniform3fv(shader->program, shader->uniform("material.diffuse"), 1, glm::value_ptr(material->diffuse));
+		}
+		if (shader->has_uniform("material.specular")) {
+			glProgramUniform3fv(shader->program, shader->uniform("material.specular"), 1, glm::value_ptr(material->specular));
+		}
+		if (shader->has_uniform("material.shininess")) {
+			glProgramUniform1f(shader->program, shader->uniform("material.shininess"), material->shininess);
+		}
+
+		// Bind textures
+		for (const auto& t : mesh.textures) {
+			glBindTextureUnit(t.unit, t.texture);
+		}
+
+		// Render mesh
+		glUseProgram(shader->program);
 		glBindVertexArray(mesh.vao);
 		glDrawElements(GL_TRIANGLES, mesh.index_count, GL_UNSIGNED_INT, 0);
 	}
@@ -908,12 +1122,6 @@ void scene_render(void)
 	if (render_normals) {
 		const shader_program_t* normal_shader = &simple_shader;
 		glm::vec3 normals_color(1.0f, 1.0f, 1.0f);
-
-		// Uniform matrices for normal lines
-		glProgramUniformMatrix4fv(normal_shader->program, normal_shader->uniform("m_modelview"), 1, GL_FALSE, glm::value_ptr(m_modelview));
-		glProgramUniformMatrix3fv(normal_shader->program, normal_shader->uniform("m_normal"), 1, GL_FALSE, glm::value_ptr(m_normal));
-		glProgramUniformMatrix4fv(normal_shader->program, normal_shader->uniform("m_view"), 1, GL_FALSE, glm::value_ptr(m_view));
-		glProgramUniformMatrix4fv(normal_shader->program, normal_shader->uniform("m_mvp"), 1, GL_FALSE, glm::value_ptr(m_mvp));
 
 		// Update uniform light parameters for normal lines
 		glProgramUniform3fv(normal_shader->program, normal_shader->uniform("light.ambient"), 1, glm::value_ptr(normals_color));
