@@ -22,27 +22,37 @@
 namespace {
 
 // Hash primes and multiplier (from reference)
-static const long long kPrimeX        = 0x5205402B9270C86FLL;
-static const long long kPrimeY        = 0x598CD327003817B5LL;
-static const long long kPrimeZ        = 0x5BCC226E9FA0BACBLL;
-static const long long kHashMultiplier = 0x53A3F72DEEC546F5LL;
-static const long long kSeedFlip3D    = -0x52D547B2E96ED629LL;
+constexpr long long kPrimeX         = 0x5205402B9270C86FLL;
+constexpr long long kPrimeY         = 0x598CD327003817B5LL;
+constexpr long long kPrimeZ         = 0x5BCC226E9FA0BACBLL;
+constexpr long long kHashMultiplier = 0x53A3F72DEEC546F5LL;
+constexpr long long kSeedFlip3D     = -0x52D547B2E96ED629LL;
 // Doubled primes (computed via unsigned to avoid signed overflow)
-static const long long kPrimeX2 = (long long)((unsigned long long)kPrimeX * 2ULL);
-static const long long kPrimeY2 = (long long)((unsigned long long)kPrimeY * 2ULL);
-static const long long kPrimeZ2 = (long long)((unsigned long long)kPrimeZ * 2ULL);
+constexpr long long kPrimeX2 = (long long)((unsigned long long)kPrimeX * 2ULL);
+constexpr long long kPrimeY2 = (long long)((unsigned long long)kPrimeY * 2ULL);
+constexpr long long kPrimeZ2 = (long long)((unsigned long long)kPrimeZ * 2ULL);
 
 // Normalizers (pre-divide gradients to keep output in [-1, 1])
-static const double kNormalizer2D = 0.05481866495625118;
-static const double kNormalizer3D = 0.2781926117527186;
+constexpr double kNormalizer2D = 0.05481866495625118;
+constexpr double kNormalizer3D = 0.2781926117527186;
 
 // 3D geometry constants
-static const double kRsq3D      = 0.75;               // RSQUARED_3D = 3/4
-static const double kRotOrtho   = -0.211324865405187; // ROTATE3_ORTHOGONALIZER
-static const double kRoot3Over3 =  0.577350269189626; // ROOT3OVER3
+constexpr double kRsq3D      = 0.75;               // RSQUARED_3D = 3/4
+constexpr double kRotOrtho   = -0.211324865405187; // ROTATE3_ORTHOGONALIZER
+constexpr double kRoot3Over3 =  0.577350269189626; // ROOT3OVER3
+
+// 2D geometry constants
+constexpr double kSkew2D    =  0.366025403784439;      // (sqrt(3)-1)/2
+constexpr double kUnskew2D  = -0.211324865405187;      // UNSKEW_2D
+constexpr double kRsq2D     =  2.0 / 3.0;              // RSQUARED_2D
+// Derived: d = 1 + 2*UNSKEW_2D (displacement to (1,1) vertex in unskewed space)
+constexpr double kD2D       =  1.0 + 2.0 * kUnskew2D; // ≈ 0.5774 = ROOT3OVER3
+// Coefficient for the algebraic shortcut computing a1 from a0 and t
+constexpr double kA1coeff2D =  2.0 * kD2D * (1.0 / kUnskew2D + 2.0);
+constexpr double kA1base2D  = -2.0 * kD2D * kD2D;
 
 // 24 unit gradient vectors for 2D (8 at 45° + 16 at 15° intervals)
-static const double kGrad2Raw[48] = {
+constexpr double kGrad2Raw[48] = {
      0.38268343236509,   0.923879532511287,
      0.923879532511287,  0.38268343236509,
      0.923879532511287, -0.38268343236509,
@@ -70,7 +80,7 @@ static const double kGrad2Raw[48] = {
 };
 
 // 48 BCC-lattice gradient vectors for 3D, stride-4 (4th element = 0)
-static const double kGrad3Raw[192] = {
+constexpr double kGrad3Raw[192] = {
      2.22474487139,      2.22474487139,     -1.0,                0.0,
      2.22474487139,      2.22474487139,      1.0,                0.0,
      3.0862664687972017, 1.1721513422464978, 0.0,                0.0,
@@ -123,27 +133,26 @@ static const double kGrad3Raw[192] = {
 
 // Gradient tables: 256 entries (2D, 128 pairs) and 1024 entries (3D, 256 quads),
 // each cycling the raw arrays and pre-dividing by the normalizer.
-static const double* grad2Table()
+constexpr std::array<double, 256> buildGrad2Table()
 {
-    static const std::array<double, 256> kTable = []() {
-        std::array<double, 256> t{};
-        for (int i = 0; i < 256; ++i)
-            t[i] = kGrad2Raw[i % 48] / kNormalizer2D;
-        return t;
-    }();
-    return kTable.data();
+    std::array<double, 256> t{};
+    for (int i = 0; i < 256; ++i) {
+        t[i] = kGrad2Raw[i % 48] / kNormalizer2D;
+    }
+    return t;
 }
 
-static const double* grad3Table()
+constexpr std::array<double, 1024> buildGrad3Table()
 {
-    static const std::array<double, 1024> kTable = []() {
-        std::array<double, 1024> t{};
-        for (int i = 0; i < 1024; ++i)
-            t[i] = kGrad3Raw[i % 192] / kNormalizer3D;
-        return t;
-    }();
-    return kTable.data();
+    std::array<double, 1024> t{};
+    for (int i = 0; i < 1024; ++i) {
+        t[i] = kGrad3Raw[i % 192] / kNormalizer3D;
+    }
+    return t;
 }
+
+constexpr std::array<double, 256>  kGrad2Table = buildGrad2Table();
+constexpr std::array<double, 1024> kGrad3Table = buildGrad3Table();
 
 // Dot product of a normalized 2D gradient with displacement (dx, dy).
 // hash selects the gradient; table has 128 pairs (256 doubles), mask = 254.
@@ -153,8 +162,7 @@ inline double grad2(long long seed, long long xvp, long long yvp, double dx, dou
     hash *= kHashMultiplier;
     hash ^= (long long)((unsigned long long)hash >> 58);
     const int gi = (int)hash & 254;
-    const double* g = grad2Table();
-    return g[gi] * dx + g[gi + 1] * dy;
+    return kGrad2Table[gi] * dx + kGrad2Table[gi + 1] * dy;
 }
 
 // Dot product of a normalized 3D gradient with displacement (dx, dy, dz).
@@ -166,14 +174,16 @@ inline double grad3(long long seed, long long xvp, long long yvp, long long zvp,
     hash *= kHashMultiplier;
     hash ^= (long long)((unsigned long long)hash >> 58);
     const int gi = (int)hash & 1020;
-    const double* g = grad3Table();
-    return g[gi] * dx + g[gi + 1] * dy + g[gi + 2] * dz;
+    return kGrad3Table[gi] * dx + kGrad3Table[gi + 1] * dy + kGrad3Table[gi + 2] * dz;
 }
 
 inline int fastFloor(double x)
 {
     const int xi = (int)x;
-    return x < xi ? xi - 1 : xi;
+    if (x < xi) {
+        return xi - 1;
+    }
+    return xi;
 }
 
 // BCC lattice evaluation in pre-rotated space, shared by all 3D orientations.
@@ -348,24 +358,24 @@ static double noise3_base(long long seed, double xr, double yr, double zr)
 }
 
 // 4D constants
-static const long long kPrimeW       = 0x56CC5227E58F554BLL;
-static const double    kUnskew4D     = -0.138196601125011;
-static const double    kRsq4D        =  4.0 / 5.0;
-static const double    kNormalizer4D =  0.11127401889945551;
+constexpr long long kPrimeW      = 0x56CC5227E58F554BLL;
+constexpr double kUnskew4D       = -0.138196601125011;
+constexpr double kRsq4D          =  4.0 / 5.0;
+constexpr double kNormalizer4D   =  0.11127401889945551;
 
 // 4D ImproveXY_ImproveZW rotation coefficients
-static const double kRot4XY      = -0.28522513987434876941; // (x+y) → s2
-static const double kRot4ZWtoXY  =  0.83897065470611435718; // (z+w) → s2
-static const double kRot4ZW      =  0.21939749883706435719; // (z+w) → t2
-static const double kRot4XYtoZW  = -0.48214856493302476942; // (x+y) → t2
+constexpr double kRot4XY         = -0.28522513987434876941; // (x+y) → s2
+constexpr double kRot4ZWtoXY     =  0.83897065470611435718; // (z+w) → s2
+constexpr double kRot4ZW         =  0.21939749883706435719; // (z+w) → t2
+constexpr double kRot4XYtoZW     = -0.48214856493302476942; // (x+y) → t2
 
 // 4D ImproveXYZ_ImproveXZ (Y-up + time) rotation coefficients
-static const double kRot4YupY    =  0.28867513459481294226; // ROOT3OVER3 / 2
-static const double kRot4YupW    =  1.118033988749894;      // sqrt(5) / 2
-static const double kRot4YupWY   =  0.866025403784439;      // sqrt(3) / 2
+constexpr double kRot4YupY       =  0.28867513459481294226; // ROOT3OVER3 / 2
+constexpr double kRot4YupW       =  1.118033988749894;      // sqrt(5) / 2
+constexpr double kRot4YupWY      =  0.866025403784439;      // sqrt(3) / 2
 
 // 160 unit gradient vectors for 4D, stride-4
-static const double kGrad4Raw[640] = {
+constexpr double kGrad4Raw[640] = {
     -0.6740059517812944,  -0.3239847771997537,  -0.3239847771997537,   0.5794684678643381,
     -0.7504883828755602,  -0.4004672082940195,   0.15296486218853164,  0.5029860367700724,
     -0.7504883828755602,   0.15296486218853164, -0.4004672082940195,   0.5029860367700724,
@@ -528,16 +538,16 @@ static const double kGrad4Raw[640] = {
      0.753341017856078,    0.37968289875261624,  0.37968289875261624,  0.37968289875261624,
 };
 
-static const double* grad4Table()
+constexpr std::array<double, 2048> buildGrad4Table()
 {
-    static const std::array<double, 2048> kTable = []() {
-        std::array<double, 2048> t{};
-        for (int i = 0; i < 2048; ++i)
-            t[i] = kGrad4Raw[i % 640] / kNormalizer4D;
-        return t;
-    }();
-    return kTable.data();
+    std::array<double, 2048> t{};
+    for (int i = 0; i < 2048; ++i) {
+        t[i] = kGrad4Raw[i % 640] / kNormalizer4D;
+    }
+    return t;
 }
+
+constexpr std::array<double, 2048> kGrad4Table = buildGrad4Table();
 
 inline double grad4(long long seed,
                     long long xsvp, long long ysvp, long long zsvp, long long wsvp,
@@ -547,8 +557,7 @@ inline double grad4(long long seed,
     hash *= kHashMultiplier;
     hash ^= (long long)((unsigned long long)hash >> 57);
     const int gi = (int)hash & 2044;
-    const double* g = grad4Table();
-    return (g[gi] * dx + g[gi + 1] * dy) + (g[gi + 2] * dz + g[gi + 3] * dw);
+    return (kGrad4Table[gi] * dx + kGrad4Table[gi + 1] * dy) + (kGrad4Table[gi + 2] * dz + kGrad4Table[gi + 3] * dw);
 }
 
 struct LatticeVertex4D {
@@ -845,6 +854,18 @@ static Lookup4DTable buildLookup4D()
     Lookup4DTable lut{};
     const unsigned char* src[2] = { kVCodes0, kVCodes1 };
     const int srcRows[2] = { 128, 128 };
+
+    int total = 0;
+    for (int s = 0; s < 2; ++s) {
+        const unsigned char* p = src[s];
+        for (int r = 0; r < srcRows[s]; ++r) {
+            const int count = *p++;
+            total += count;
+            p += count;
+        }
+    }
+    lut.b.reserve(total);
+
     int row = 0;
     for (int s = 0; s < 2; ++s) {
         const unsigned char* p = src[s];
@@ -852,8 +873,9 @@ static Lookup4DTable buildLookup4D()
             const int count = *p++;
             const int start = (int)lut.b.size();
             lut.a[row] = start | ((start + count) << 16);
-            for (int k = 0; k < count; ++k)
+            for (int k = 0; k < count; ++k) {
                 lut.b.push_back(byCode[*p++]);
+            }
         }
     }
     return lut;
@@ -919,15 +941,8 @@ static double noise4_base(long long seed, double xs, double ys, double zs, doubl
 static void noise2_withGrad(long long seed, double xd, double yd,
                              double& ddx, double& ddy)
 {
-    static const double kSkew    =  0.366025403784439;
-    static const double kUnskew  = -0.211324865405187;
-    static const double kRsq     =  2.0 / 3.0;
-    static const double kD       =  1.0 + 2.0 * kUnskew;
-    static const double kA1coeff =  2.0 * kD * (1.0 / kUnskew + 2.0);
-    static const double kA1base  = -2.0 * kD * kD;
-
     // Skew input to triangular lattice
-    const double s  = kSkew * (xd + yd);
+    const double s  = kSkew2D * (xd + yd);
     const double xs = xd + s, ys = yd + s;
 
     // Base cell
@@ -939,11 +954,10 @@ static void noise2_withGrad(long long seed, double xd, double yd,
     const long long ysbp = (long long)ysb * kPrimeY;
 
     // Unskew to get displacements to vertex (0,0)
-    const double t   = (xi + yi) * kUnskew;
+    const double t   = (xi + yi) * kUnskew2D;
     const double dx0 = xi + t, dy0 = yi + t;
 
-    const double a0 = kRsq - dx0 * dx0 - dy0 * dy0;
-    const double* g = grad2Table();
+    const double a0 = kRsq2D - dx0 * dx0 - dy0 * dy0;
 
     ddx = 0.0;
     ddy = 0.0;
@@ -956,7 +970,7 @@ static void noise2_withGrad(long long seed, double xd, double yd,
         hash *= kHashMultiplier;
         hash ^= (long long)((unsigned long long)hash >> 58);
         const int gi    = (int)hash & 254;
-        const double gx = g[gi], gy = g[gi + 1];
+        const double gx = kGrad2Table[gi], gy = kGrad2Table[gi + 1];
         const double ex = gx * dx0 + gy * dy0;
         const double a2 = a0 * a0;
         ddx += a2 * (-8.0 * dx0 * a0 * ex + a2 * gx);
@@ -965,13 +979,13 @@ static void noise2_withGrad(long long seed, double xd, double yd,
 
     // Vertex (1,1): always contributes; falloff derived algebraically
     {
-        const double a  = kA1coeff * t + (kA1base + a0);
-        const double dx = dx0 - kD, dy = dy0 - kD;
+        const double a  = kA1coeff2D * t + (kA1base2D + a0);
+        const double dx = dx0 - kD2D, dy = dy0 - kD2D;
         long long hash  = seed ^ (xsbp + kPrimeX) ^ (ysbp + kPrimeY);
         hash *= kHashMultiplier;
         hash ^= (long long)((unsigned long long)hash >> 58);
         const int gi    = (int)hash & 254;
-        const double gx = g[gi], gy = g[gi + 1];
+        const double gx = kGrad2Table[gi], gy = kGrad2Table[gi + 1];
         const double ex = gx * dx + gy * dy;
         const double a2 = a * a;
         ddx += a2 * (-8.0 * dx * a * ex + a2 * gx);
@@ -980,32 +994,32 @@ static void noise2_withGrad(long long seed, double xd, double yd,
 
     // Two conditional extra vertices selected based on which simplex half we're in
     const double xmyi = xi - yi;
-    if (t < kUnskew) {
+    if (t < kUnskew2D) {
         if (xi + xmyi > 1.0) {
-            const double dx = dx0 - (3.0 * kUnskew + 2.0);
-            const double dy = dy0 - (3.0 * kUnskew + 1.0);
-            const double a  = kRsq - dx * dx - dy * dy;
+            const double dx = dx0 - (3.0 * kUnskew2D + 2.0);
+            const double dy = dy0 - (3.0 * kUnskew2D + 1.0);
+            const double a  = kRsq2D - dx * dx - dy * dy;
             if (a > 0.0) {
                 long long hash  = seed ^ (xsbp + kPrimeX2) ^ (ysbp + kPrimeY);
                 hash *= kHashMultiplier;
                 hash ^= (long long)((unsigned long long)hash >> 58);
                 const int gi    = (int)hash & 254;
-                const double gx = g[gi], gy = g[gi + 1];
+                const double gx = kGrad2Table[gi], gy = kGrad2Table[gi + 1];
                 const double ex = gx * dx + gy * dy;
                 const double a2 = a * a;
                 ddx += a2 * (-8.0 * dx * a * ex + a2 * gx);
                 ddy += a2 * (-8.0 * dy * a * ex + a2 * gy);
             }
         } else {
-            const double dx = dx0 - kUnskew;
-            const double dy = dy0 - (kUnskew + 1.0);
-            const double a  = kRsq - dx * dx - dy * dy;
+            const double dx = dx0 - kUnskew2D;
+            const double dy = dy0 - (kUnskew2D + 1.0);
+            const double a  = kRsq2D - dx * dx - dy * dy;
             if (a > 0.0) {
                 long long hash  = seed ^ xsbp ^ (ysbp + kPrimeY);
                 hash *= kHashMultiplier;
                 hash ^= (long long)((unsigned long long)hash >> 58);
                 const int gi    = (int)hash & 254;
-                const double gx = g[gi], gy = g[gi + 1];
+                const double gx = kGrad2Table[gi], gy = kGrad2Table[gi + 1];
                 const double ex = gx * dx + gy * dy;
                 const double a2 = a * a;
                 ddx += a2 * (-8.0 * dx * a * ex + a2 * gx);
@@ -1013,30 +1027,30 @@ static void noise2_withGrad(long long seed, double xd, double yd,
             }
         }
         if (yi - xmyi > 1.0) {
-            const double dx = dx0 - (3.0 * kUnskew + 1.0);
-            const double dy = dy0 - (3.0 * kUnskew + 2.0);
-            const double a  = kRsq - dx * dx - dy * dy;
+            const double dx = dx0 - (3.0 * kUnskew2D + 1.0);
+            const double dy = dy0 - (3.0 * kUnskew2D + 2.0);
+            const double a  = kRsq2D - dx * dx - dy * dy;
             if (a > 0.0) {
                 long long hash  = seed ^ (xsbp + kPrimeX) ^ (ysbp + kPrimeY2);
                 hash *= kHashMultiplier;
                 hash ^= (long long)((unsigned long long)hash >> 58);
                 const int gi    = (int)hash & 254;
-                const double gx = g[gi], gy = g[gi + 1];
+                const double gx = kGrad2Table[gi], gy = kGrad2Table[gi + 1];
                 const double ex = gx * dx + gy * dy;
                 const double a2 = a * a;
                 ddx += a2 * (-8.0 * dx * a * ex + a2 * gx);
                 ddy += a2 * (-8.0 * dy * a * ex + a2 * gy);
             }
         } else {
-            const double dx = dx0 - (kUnskew + 1.0);
-            const double dy = dy0 - kUnskew;
-            const double a  = kRsq - dx * dx - dy * dy;
+            const double dx = dx0 - (kUnskew2D + 1.0);
+            const double dy = dy0 - kUnskew2D;
+            const double a  = kRsq2D - dx * dx - dy * dy;
             if (a > 0.0) {
                 long long hash  = seed ^ (xsbp + kPrimeX) ^ ysbp;
                 hash *= kHashMultiplier;
                 hash ^= (long long)((unsigned long long)hash >> 58);
                 const int gi    = (int)hash & 254;
-                const double gx = g[gi], gy = g[gi + 1];
+                const double gx = kGrad2Table[gi], gy = kGrad2Table[gi + 1];
                 const double ex = gx * dx + gy * dy;
                 const double a2 = a * a;
                 ddx += a2 * (-8.0 * dx * a * ex + a2 * gx);
@@ -1045,30 +1059,30 @@ static void noise2_withGrad(long long seed, double xd, double yd,
         }
     } else {
         if (xi + xmyi < 0.0) {
-            const double dx = dx0 + (1.0 + kUnskew);
-            const double dy = dy0 + kUnskew;
-            const double a  = kRsq - dx * dx - dy * dy;
+            const double dx = dx0 + (1.0 + kUnskew2D);
+            const double dy = dy0 + kUnskew2D;
+            const double a  = kRsq2D - dx * dx - dy * dy;
             if (a > 0.0) {
                 long long hash  = seed ^ (xsbp - kPrimeX) ^ ysbp;
                 hash *= kHashMultiplier;
                 hash ^= (long long)((unsigned long long)hash >> 58);
                 const int gi    = (int)hash & 254;
-                const double gx = g[gi], gy = g[gi + 1];
+                const double gx = kGrad2Table[gi], gy = kGrad2Table[gi + 1];
                 const double ex = gx * dx + gy * dy;
                 const double a2 = a * a;
                 ddx += a2 * (-8.0 * dx * a * ex + a2 * gx);
                 ddy += a2 * (-8.0 * dy * a * ex + a2 * gy);
             }
         } else {
-            const double dx = dx0 - (kUnskew + 1.0);
-            const double dy = dy0 - kUnskew;
-            const double a  = kRsq - dx * dx - dy * dy;
+            const double dx = dx0 - (kUnskew2D + 1.0);
+            const double dy = dy0 - kUnskew2D;
+            const double a  = kRsq2D - dx * dx - dy * dy;
             if (a > 0.0) {
                 long long hash  = seed ^ (xsbp + kPrimeX) ^ ysbp;
                 hash *= kHashMultiplier;
                 hash ^= (long long)((unsigned long long)hash >> 58);
                 const int gi    = (int)hash & 254;
-                const double gx = g[gi], gy = g[gi + 1];
+                const double gx = kGrad2Table[gi], gy = kGrad2Table[gi + 1];
                 const double ex = gx * dx + gy * dy;
                 const double a2 = a * a;
                 ddx += a2 * (-8.0 * dx * a * ex + a2 * gx);
@@ -1076,30 +1090,30 @@ static void noise2_withGrad(long long seed, double xd, double yd,
             }
         }
         if (yi < xmyi) {
-            const double dx = dx0 + kUnskew;
-            const double dy = dy0 + (kUnskew + 1.0);
-            const double a  = kRsq - dx * dx - dy * dy;
+            const double dx = dx0 + kUnskew2D;
+            const double dy = dy0 + (kUnskew2D + 1.0);
+            const double a  = kRsq2D - dx * dx - dy * dy;
             if (a > 0.0) {
                 long long hash  = seed ^ xsbp ^ (ysbp - kPrimeY);
                 hash *= kHashMultiplier;
                 hash ^= (long long)((unsigned long long)hash >> 58);
                 const int gi    = (int)hash & 254;
-                const double gx = g[gi], gy = g[gi + 1];
+                const double gx = kGrad2Table[gi], gy = kGrad2Table[gi + 1];
                 const double ex = gx * dx + gy * dy;
                 const double a2 = a * a;
                 ddx += a2 * (-8.0 * dx * a * ex + a2 * gx);
                 ddy += a2 * (-8.0 * dy * a * ex + a2 * gy);
             }
         } else {
-            const double dx = dx0 - kUnskew;
-            const double dy = dy0 - (kUnskew + 1.0);
-            const double a  = kRsq - dx * dx - dy * dy;
+            const double dx = dx0 - kUnskew2D;
+            const double dy = dy0 - (kUnskew2D + 1.0);
+            const double a  = kRsq2D - dx * dx - dy * dy;
             if (a > 0.0) {
                 long long hash  = seed ^ xsbp ^ (ysbp + kPrimeY);
                 hash *= kHashMultiplier;
                 hash ^= (long long)((unsigned long long)hash >> 58);
                 const int gi    = (int)hash & 254;
-                const double gx = g[gi], gy = g[gi + 1];
+                const double gx = kGrad2Table[gi], gy = kGrad2Table[gi + 1];
                 const double ex = gx * dx + gy * dy;
                 const double a2 = a * a;
                 ddx += a2 * (-8.0 * dx * a * ex + a2 * gx);
@@ -1120,20 +1134,10 @@ OpenSimplex2S<T>::OpenSimplex2S(long long seed)
 template <typename T>
 T OpenSimplex2S<T>::noise(T x, T y) const
 {
-    // Geometry constants
-    static const double kSkew   =  0.366025403784439;    // (sqrt(3)-1)/2
-    static const double kUnskew = -0.211324865405187;    // UNSKEW_2D
-    static const double kRsq    =  2.0 / 3.0;           // RSQUARED_2D
-    // Derived: d = 1 + 2*UNSKEW_2D (displacement to (1,1) vertex in unskewed space)
-    static const double kD      =  1.0 + 2.0 * kUnskew; // ≈ 0.5774 = ROOT3OVER3
-    // Coefficient for the algebraic shortcut computing a1 from a0 and t
-    static const double kA1coeff = 2.0 * kD * (1.0 / kUnskew + 2.0);
-    static const double kA1base  = -2.0 * kD * kD;
-
     const double xd = x, yd = y;
 
     // Skew input to triangular lattice
-    const double s  = kSkew * (xd + yd);
+    const double s  = kSkew2D * (xd + yd);
     const double xs = xd + s, ys = yd + s;
 
     // Base cell
@@ -1145,73 +1149,81 @@ T OpenSimplex2S<T>::noise(T x, T y) const
     const long long ysbp = (long long)ysb * kPrimeY;
 
     // Unskew to get displacements to vertex (0,0)
-    const double t   = (xi + yi) * kUnskew;
+    const double t   = (xi + yi) * kUnskew2D;
     const double dx0 = xi + t, dy0 = yi + t;
 
     // Vertex (0,0): always contributes (a0 >= 0 for all xi,yi in [0,1))
-    const double a0 = kRsq - dx0 * dx0 - dy0 * dy0;
+    const double a0 = kRsq2D - dx0 * dx0 - dy0 * dy0;
     double value = (a0 * a0) * (a0 * a0) * grad2(seed_, xsbp, ysbp, dx0, dy0);
 
     // Vertex (1,1): always contributes; falloff derived algebraically from a0 and t
-    const double a1  = kA1coeff * t + (kA1base + a0);
-    const double dx1 = dx0 - kD, dy1 = dy0 - kD;
+    const double a1  = kA1coeff2D * t + (kA1base2D + a0);
+    const double dx1 = dx0 - kD2D, dy1 = dy0 - kD2D;
     value += (a1 * a1) * (a1 * a1) * grad2(seed_, xsbp + kPrimeX, ysbp + kPrimeY, dx1, dy1);
 
     // Two conditional extra vertices selected based on which simplex half we're in
     const double xmyi = xi - yi;
-    if (t < kUnskew) {
+    if (t < kUnskew2D) {
         if (xi + xmyi > 1.0) {
-            const double dx2 = dx0 - (3.0 * kUnskew + 2.0);
-            const double dy2 = dy0 - (3.0 * kUnskew + 1.0);
-            const double a2  = kRsq - dx2 * dx2 - dy2 * dy2;
-            if (a2 > 0)
+            const double dx2 = dx0 - (3.0 * kUnskew2D + 2.0);
+            const double dy2 = dy0 - (3.0 * kUnskew2D + 1.0);
+            const double a2  = kRsq2D - dx2 * dx2 - dy2 * dy2;
+            if (a2 > 0) {
                 value += (a2 * a2) * (a2 * a2) * grad2(seed_, xsbp + kPrimeX2, ysbp + kPrimeY, dx2, dy2);
+            }
         } else {
-            const double dx2 = dx0 - kUnskew;
-            const double dy2 = dy0 - (kUnskew + 1.0);
-            const double a2  = kRsq - dx2 * dx2 - dy2 * dy2;
-            if (a2 > 0)
+            const double dx2 = dx0 - kUnskew2D;
+            const double dy2 = dy0 - (kUnskew2D + 1.0);
+            const double a2  = kRsq2D - dx2 * dx2 - dy2 * dy2;
+            if (a2 > 0) {
                 value += (a2 * a2) * (a2 * a2) * grad2(seed_, xsbp, ysbp + kPrimeY, dx2, dy2);
+            }
         }
         if (yi - xmyi > 1.0) {
-            const double dx3 = dx0 - (3.0 * kUnskew + 1.0);
-            const double dy3 = dy0 - (3.0 * kUnskew + 2.0);
-            const double a3  = kRsq - dx3 * dx3 - dy3 * dy3;
-            if (a3 > 0)
+            const double dx3 = dx0 - (3.0 * kUnskew2D + 1.0);
+            const double dy3 = dy0 - (3.0 * kUnskew2D + 2.0);
+            const double a3  = kRsq2D - dx3 * dx3 - dy3 * dy3;
+            if (a3 > 0) {
                 value += (a3 * a3) * (a3 * a3) * grad2(seed_, xsbp + kPrimeX, ysbp + kPrimeY2, dx3, dy3);
+            }
         } else {
-            const double dx3 = dx0 - (kUnskew + 1.0);
-            const double dy3 = dy0 - kUnskew;
-            const double a3  = kRsq - dx3 * dx3 - dy3 * dy3;
-            if (a3 > 0)
+            const double dx3 = dx0 - (kUnskew2D + 1.0);
+            const double dy3 = dy0 - kUnskew2D;
+            const double a3  = kRsq2D - dx3 * dx3 - dy3 * dy3;
+            if (a3 > 0) {
                 value += (a3 * a3) * (a3 * a3) * grad2(seed_, xsbp + kPrimeX, ysbp, dx3, dy3);
+            }
         }
     } else {
         if (xi + xmyi < 0.0) {
-            const double dx2 = dx0 + (1.0 + kUnskew);
-            const double dy2 = dy0 + kUnskew;
-            const double a2  = kRsq - dx2 * dx2 - dy2 * dy2;
-            if (a2 > 0)
+            const double dx2 = dx0 + (1.0 + kUnskew2D);
+            const double dy2 = dy0 + kUnskew2D;
+            const double a2  = kRsq2D - dx2 * dx2 - dy2 * dy2;
+            if (a2 > 0) {
                 value += (a2 * a2) * (a2 * a2) * grad2(seed_, xsbp - kPrimeX, ysbp, dx2, dy2);
+            }
         } else {
-            const double dx2 = dx0 - (kUnskew + 1.0);
-            const double dy2 = dy0 - kUnskew;
-            const double a2  = kRsq - dx2 * dx2 - dy2 * dy2;
-            if (a2 > 0)
+            const double dx2 = dx0 - (kUnskew2D + 1.0);
+            const double dy2 = dy0 - kUnskew2D;
+            const double a2  = kRsq2D - dx2 * dx2 - dy2 * dy2;
+            if (a2 > 0) {
                 value += (a2 * a2) * (a2 * a2) * grad2(seed_, xsbp + kPrimeX, ysbp, dx2, dy2);
+            }
         }
         if (yi < xmyi) {
-            const double dx2 = dx0 + kUnskew;
-            const double dy2 = dy0 + (kUnskew + 1.0);
-            const double a2  = kRsq - dx2 * dx2 - dy2 * dy2;
-            if (a2 > 0)
+            const double dx2 = dx0 + kUnskew2D;
+            const double dy2 = dy0 + (kUnskew2D + 1.0);
+            const double a2  = kRsq2D - dx2 * dx2 - dy2 * dy2;
+            if (a2 > 0) {
                 value += (a2 * a2) * (a2 * a2) * grad2(seed_, xsbp, ysbp - kPrimeY, dx2, dy2);
+            }
         } else {
-            const double dx2 = dx0 - kUnskew;
-            const double dy2 = dy0 - (kUnskew + 1.0);
-            const double a2  = kRsq - dx2 * dx2 - dy2 * dy2;
-            if (a2 > 0)
+            const double dx2 = dx0 - kUnskew2D;
+            const double dy2 = dy0 - (kUnskew2D + 1.0);
+            const double a2  = kRsq2D - dx2 * dx2 - dy2 * dy2;
+            if (a2 > 0) {
                 value += (a2 * a2) * (a2 * a2) * grad2(seed_, xsbp, ysbp + kPrimeY, dx2, dy2);
+            }
         }
     }
 
