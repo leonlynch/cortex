@@ -22,15 +22,15 @@
 namespace {
 
 // Hash primes and multiplier (from reference)
-constexpr long long kPrimeX         = 0x5205402B9270C86FLL;
-constexpr long long kPrimeY         = 0x598CD327003817B5LL;
-constexpr long long kPrimeZ         = 0x5BCC226E9FA0BACBLL;
-constexpr long long kHashMultiplier = 0x53A3F72DEEC546F5LL;
-constexpr long long kSeedFlip3D     = -0x52D547B2E96ED629LL;
-// Doubled primes (computed via unsigned to avoid signed overflow)
-constexpr long long kPrimeX2 = (long long)((unsigned long long)kPrimeX * 2ULL);
-constexpr long long kPrimeY2 = (long long)((unsigned long long)kPrimeY * 2ULL);
-constexpr long long kPrimeZ2 = (long long)((unsigned long long)kPrimeZ * 2ULL);
+constexpr uint64_t kPrimeX         = 0x5205402B9270C86FULL;
+constexpr uint64_t kPrimeY         = 0x598CD327003817B5ULL;
+constexpr uint64_t kPrimeZ         = 0x5BCC226E9FA0BACBULL;
+constexpr uint64_t kHashMultiplier = 0x53A3F72DEEC546F5ULL;
+constexpr uint64_t kSeedFlip3D     = -(uint64_t)0x52D547B2E96ED629ULL;
+// Doubled primes
+constexpr uint64_t kPrimeX2 = kPrimeX * 2;
+constexpr uint64_t kPrimeY2 = kPrimeY * 2;
+constexpr uint64_t kPrimeZ2 = kPrimeZ * 2;
 
 // Normalizers (pre-divide gradients to keep output in [-1, 1])
 constexpr double kNormalizer2D = 0.05481866495625118;
@@ -154,25 +154,31 @@ constexpr std::array<double, 1024> buildGrad3Table()
 constexpr std::array<double, 256>  kGrad2Table = buildGrad2Table();
 constexpr std::array<double, 1024> kGrad3Table = buildGrad3Table();
 
+// Index into kGrad2Table for the vertex at (xvp, yvp).
+inline int grad2Idx(uint64_t seed, uint64_t xvp, uint64_t yvp)
+{
+    uint64_t hash = seed ^ xvp ^ yvp;
+    hash *= kHashMultiplier;
+    hash ^= hash >> 58;
+    return (int)hash & 254;
+}
+
 // Dot product of a normalized 2D gradient with displacement (dx, dy).
 // hash selects the gradient; table has 128 pairs (256 doubles), mask = 254.
-inline double grad2(long long seed, long long xvp, long long yvp, double dx, double dy)
+inline double grad2(uint64_t seed, uint64_t xvp, uint64_t yvp, double dx, double dy)
 {
-    long long hash = seed ^ xvp ^ yvp;
-    hash *= kHashMultiplier;
-    hash ^= (long long)((unsigned long long)hash >> 58);
-    const int gi = (int)hash & 254;
+    const int gi = grad2Idx(seed, xvp, yvp);
     return kGrad2Table[gi] * dx + kGrad2Table[gi + 1] * dy;
 }
 
 // Dot product of a normalized 3D gradient with displacement (dx, dy, dz).
 // hash selects the gradient; table has 256 quads (1024 doubles), mask = 1020.
-inline double grad3(long long seed, long long xvp, long long yvp, long long zvp,
+inline double grad3(uint64_t seed, uint64_t xvp, uint64_t yvp, uint64_t zvp,
                     double dx, double dy, double dz)
 {
-    long long hash = (seed ^ xvp) ^ (yvp ^ zvp);
+    uint64_t hash = (seed ^ xvp) ^ (yvp ^ zvp);
     hash *= kHashMultiplier;
-    hash ^= (long long)((unsigned long long)hash >> 58);
+    hash ^= hash >> 58;
     const int gi = (int)hash & 1020;
     return kGrad3Table[gi] * dx + kGrad3Table[gi + 1] * dy + kGrad3Table[gi + 2] * dz;
 }
@@ -187,17 +193,17 @@ inline int fastFloor(double x)
 }
 
 // BCC lattice evaluation in pre-rotated space, shared by all 3D orientations.
-static double noise3_base(long long seed, double xr, double yr, double zr)
+static double noise3_base(uint64_t seed, double xr, double yr, double zr)
 {
     // Base cell in rotated space
     const int xrb = fastFloor(xr), yrb = fastFloor(yr), zrb = fastFloor(zr);
     const double xi = xr - xrb, yi = yr - yrb, zi = zr - zrb;
 
     // Prime-multiplied coordinates; second seed for body-centre BCC sublattice
-    const long long xrbp  = (long long)xrb * kPrimeX;
-    const long long yrbp  = (long long)yrb * kPrimeY;
-    const long long zrbp  = (long long)zrb * kPrimeZ;
-    const long long seed2 = seed ^ kSeedFlip3D;
+    const uint64_t xrbp  = (uint64_t)xrb * kPrimeX;
+    const uint64_t yrbp  = (uint64_t)yrb * kPrimeY;
+    const uint64_t zrbp  = (uint64_t)zrb * kPrimeZ;
+    const uint64_t seed2 = seed ^ kSeedFlip3D;
 
     // xNMask = -1 when xi > 0.5 (nearest corner has +1 offset), 0 otherwise
     const int xNMask = (int)(-0.5 - xi);
@@ -208,9 +214,9 @@ static double noise3_base(long long seed, double xr, double yr, double zr)
     const double x0 = xi + xNMask, y0 = yi + yNMask, z0 = zi + zNMask;
     const double a0 = kRsq3D - x0 * x0 - y0 * y0 - z0 * z0;
     double value = (a0 * a0) * (a0 * a0) * grad3(seed,
-        xrbp + ((long long)xNMask & kPrimeX),
-        yrbp + ((long long)yNMask & kPrimeY),
-        zrbp + ((long long)zNMask & kPrimeZ),
+        xrbp + ((uint64_t)xNMask & kPrimeX),
+        yrbp + ((uint64_t)yNMask & kPrimeY),
+        zrbp + ((uint64_t)zNMask & kPrimeZ),
         x0, y0, z0);
 
     // Second vertex: body centre of BCC sublattice 2 (always contributes)
@@ -221,12 +227,12 @@ static double noise3_base(long long seed, double xr, double yr, double zr)
         x1, y1, z1);
 
     // Algebraic shortcuts: derive falloff at flipped vertices from a0 / a1
-    const double xAFlipMask0 = ((double)((xNMask | 1) << 1)) * x1;
-    const double yAFlipMask0 = ((double)((yNMask | 1) << 1)) * y1;
-    const double zAFlipMask0 = ((double)((zNMask | 1) << 1)) * z1;
-    const double xAFlipMask1 = ((double)(-2 - (xNMask << 2))) * x1 - 1.0;
-    const double yAFlipMask1 = ((double)(-2 - (yNMask << 2))) * y1 - 1.0;
-    const double zAFlipMask1 = ((double)(-2 - (zNMask << 2))) * z1 - 1.0;
+    const double xAFlipMask0 = ((double)((xNMask | 1) * 2)) * x1;
+    const double yAFlipMask0 = ((double)((yNMask | 1) * 2)) * y1;
+    const double zAFlipMask0 = ((double)((zNMask | 1) * 2)) * z1;
+    const double xAFlipMask1 = ((double)(-2 - (xNMask * 4))) * x1 - 1.0;
+    const double yAFlipMask1 = ((double)(-2 - (yNMask * 4))) * y1 - 1.0;
+    const double zAFlipMask1 = ((double)(-2 - (zNMask * 4))) * z1 - 1.0;
 
     // Each of the three pairs below evaluates up to 3 conditional vertices and
     // may set a skip flag preventing a redundant evaluation in the final block.
@@ -236,23 +242,23 @@ static double noise3_base(long long seed, double xr, double yr, double zr)
         const double a2 = xAFlipMask0 + a0;
         if (a2 > 0) {
             value += (a2 * a2) * (a2 * a2) * grad3(seed,
-                xrbp + (~(long long)xNMask & kPrimeX),
-                yrbp + ((long long)yNMask  & kPrimeY),
-                zrbp + ((long long)zNMask  & kPrimeZ),
+                xrbp + (~(uint64_t)xNMask & kPrimeX),
+                yrbp + ((uint64_t)yNMask  & kPrimeY),
+                zrbp + ((uint64_t)zNMask  & kPrimeZ),
                 x0 - (double)(xNMask | 1), y0, z0);
         } else {
             const double a3 = yAFlipMask0 + zAFlipMask0 + a0;
             if (a3 > 0) {
                 value += (a3 * a3) * (a3 * a3) * grad3(seed,
-                    xrbp + ((long long)xNMask  & kPrimeX),
-                    yrbp + (~(long long)yNMask & kPrimeY),
-                    zrbp + (~(long long)zNMask & kPrimeZ),
+                    xrbp + ((uint64_t)xNMask  & kPrimeX),
+                    yrbp + (~(uint64_t)yNMask & kPrimeY),
+                    zrbp + (~(uint64_t)zNMask & kPrimeZ),
                     x0, y0 - (double)(yNMask | 1), z0 - (double)(zNMask | 1));
             }
             const double a4 = xAFlipMask1 + a1;
             if (a4 > 0) {
                 value += (a4 * a4) * (a4 * a4) * grad3(seed2,
-                    xrbp + ((long long)xNMask & (kPrimeX2)),
+                    xrbp + ((uint64_t)xNMask & (kPrimeX2)),
                     yrbp + kPrimeY,
                     zrbp + kPrimeZ,
                     (double)(xNMask | 1) + x1, y1, z1);
@@ -266,24 +272,24 @@ static double noise3_base(long long seed, double xr, double yr, double zr)
         const double a6 = yAFlipMask0 + a0;
         if (a6 > 0) {
             value += (a6 * a6) * (a6 * a6) * grad3(seed,
-                xrbp + ((long long)xNMask  & kPrimeX),
-                yrbp + (~(long long)yNMask & kPrimeY),
-                zrbp + ((long long)zNMask  & kPrimeZ),
+                xrbp + ((uint64_t)xNMask  & kPrimeX),
+                yrbp + (~(uint64_t)yNMask & kPrimeY),
+                zrbp + ((uint64_t)zNMask  & kPrimeZ),
                 x0, y0 - (double)(yNMask | 1), z0);
         } else {
             const double a7 = xAFlipMask0 + zAFlipMask0 + a0;
             if (a7 > 0) {
                 value += (a7 * a7) * (a7 * a7) * grad3(seed,
-                    xrbp + (~(long long)xNMask & kPrimeX),
-                    yrbp + ((long long)yNMask  & kPrimeY),
-                    zrbp + (~(long long)zNMask & kPrimeZ),
+                    xrbp + (~(uint64_t)xNMask & kPrimeX),
+                    yrbp + ((uint64_t)yNMask  & kPrimeY),
+                    zrbp + (~(uint64_t)zNMask & kPrimeZ),
                     x0 - (double)(xNMask | 1), y0, z0 - (double)(zNMask | 1));
             }
             const double a8 = yAFlipMask1 + a1;
             if (a8 > 0) {
                 value += (a8 * a8) * (a8 * a8) * grad3(seed2,
                     xrbp + kPrimeX,
-                    yrbp + ((long long)yNMask & (kPrimeY2)),
+                    yrbp + ((uint64_t)yNMask & (kPrimeY2)),
                     zrbp + kPrimeZ,
                     x1, (double)(yNMask | 1) + y1, z1);
                 skip9 = true;
@@ -296,17 +302,17 @@ static double noise3_base(long long seed, double xr, double yr, double zr)
         const double aA = zAFlipMask0 + a0;
         if (aA > 0) {
             value += (aA * aA) * (aA * aA) * grad3(seed,
-                xrbp + ((long long)xNMask  & kPrimeX),
-                yrbp + ((long long)yNMask  & kPrimeY),
-                zrbp + (~(long long)zNMask & kPrimeZ),
+                xrbp + ((uint64_t)xNMask  & kPrimeX),
+                yrbp + ((uint64_t)yNMask  & kPrimeY),
+                zrbp + (~(uint64_t)zNMask & kPrimeZ),
                 x0, y0, z0 - (double)(zNMask | 1));
         } else {
             const double aB = xAFlipMask0 + yAFlipMask0 + a0;
             if (aB > 0) {
                 value += (aB * aB) * (aB * aB) * grad3(seed,
-                    xrbp + (~(long long)xNMask & kPrimeX),
-                    yrbp + (~(long long)yNMask & kPrimeY),
-                    zrbp + ((long long)zNMask  & kPrimeZ),
+                    xrbp + (~(uint64_t)xNMask & kPrimeX),
+                    yrbp + (~(uint64_t)yNMask & kPrimeY),
+                    zrbp + ((uint64_t)zNMask  & kPrimeZ),
                     x0 - (double)(xNMask | 1), y0 - (double)(yNMask | 1), z0);
             }
             const double aC = zAFlipMask1 + a1;
@@ -314,7 +320,7 @@ static double noise3_base(long long seed, double xr, double yr, double zr)
                 value += (aC * aC) * (aC * aC) * grad3(seed2,
                     xrbp + kPrimeX,
                     yrbp + kPrimeY,
-                    zrbp + ((long long)zNMask & (kPrimeZ2)),
+                    zrbp + ((uint64_t)zNMask & (kPrimeZ2)),
                     x1, y1, (double)(zNMask | 1) + z1);
                 skipD = true;
             }
@@ -326,8 +332,8 @@ static double noise3_base(long long seed, double xr, double yr, double zr)
         if (a5 > 0) {
             value += (a5 * a5) * (a5 * a5) * grad3(seed2,
                 xrbp + kPrimeX,
-                yrbp + ((long long)yNMask & (kPrimeY2)),
-                zrbp + ((long long)zNMask & (kPrimeZ2)),
+                yrbp + ((uint64_t)yNMask & (kPrimeY2)),
+                zrbp + ((uint64_t)zNMask & (kPrimeZ2)),
                 x1, (double)(yNMask | 1) + y1, (double)(zNMask | 1) + z1);
         }
     }
@@ -336,9 +342,9 @@ static double noise3_base(long long seed, double xr, double yr, double zr)
         const double a9 = xAFlipMask1 + zAFlipMask1 + a1;
         if (a9 > 0) {
             value += (a9 * a9) * (a9 * a9) * grad3(seed2,
-                xrbp + ((long long)xNMask & (kPrimeX2)),
+                xrbp + ((uint64_t)xNMask & (kPrimeX2)),
                 yrbp + kPrimeY,
-                zrbp + ((long long)zNMask & (kPrimeZ2)),
+                zrbp + ((uint64_t)zNMask & (kPrimeZ2)),
                 (double)(xNMask | 1) + x1, y1, (double)(zNMask | 1) + z1);
         }
     }
@@ -347,8 +353,8 @@ static double noise3_base(long long seed, double xr, double yr, double zr)
         const double aD = xAFlipMask1 + yAFlipMask1 + a1;
         if (aD > 0) {
             value += (aD * aD) * (aD * aD) * grad3(seed2,
-                xrbp + ((long long)xNMask & (kPrimeX2)),
-                yrbp + ((long long)yNMask & (kPrimeY2)),
+                xrbp + ((uint64_t)xNMask & (kPrimeX2)),
+                yrbp + ((uint64_t)yNMask & (kPrimeY2)),
                 zrbp + kPrimeZ,
                 (double)(xNMask | 1) + x1, (double)(yNMask | 1) + y1, z1);
         }
@@ -358,7 +364,7 @@ static double noise3_base(long long seed, double xr, double yr, double zr)
 }
 
 // 4D constants
-constexpr long long kPrimeW      = 0x56CC5227E58F554BLL;
+constexpr uint64_t kPrimeW       = 0x56CC5227E58F554BULL;
 constexpr double kUnskew4D       = -0.138196601125011;
 constexpr double kRsq4D          =  4.0 / 5.0;
 constexpr double kNormalizer4D   =  0.11127401889945551;
@@ -549,20 +555,20 @@ constexpr std::array<double, 2048> buildGrad4Table()
 
 constexpr std::array<double, 2048> kGrad4Table = buildGrad4Table();
 
-inline double grad4(long long seed,
-                    long long xsvp, long long ysvp, long long zsvp, long long wsvp,
+inline double grad4(uint64_t seed,
+                    uint64_t xsvp, uint64_t ysvp, uint64_t zsvp, uint64_t wsvp,
                     double dx, double dy, double dz, double dw)
 {
-    long long hash = seed ^ (xsvp ^ ysvp) ^ (zsvp ^ wsvp);
+    uint64_t hash = seed ^ (xsvp ^ ysvp) ^ (zsvp ^ wsvp);
     hash *= kHashMultiplier;
-    hash ^= (long long)((unsigned long long)hash >> 57);
+    hash ^= hash >> 57;
     const int gi = (int)hash & 2044;
     return (kGrad4Table[gi] * dx + kGrad4Table[gi + 1] * dy) + (kGrad4Table[gi + 2] * dz + kGrad4Table[gi + 3] * dw);
 }
 
 struct LatticeVertex4D {
     double dx, dy, dz, dw;
-    long long xsvp, ysvp, zsvp, wsvp;
+    uint64_t xsvp, ysvp, zsvp, wsvp;
 };
 
 // Vertex codes for 4D lookup table, rows 0-127.
@@ -846,8 +852,8 @@ static Lookup4DTable buildLookup4D()
         const double ssv = (cx + cy + cz + cw) * kUnskew4D;
         byCode[i] = {
             -cx - ssv, -cy - ssv, -cz - ssv, -cw - ssv,
-            (long long)cx * kPrimeX, (long long)cy * kPrimeY,
-            (long long)cz * kPrimeZ, (long long)cw * kPrimeW
+            (uint64_t)cx * kPrimeX, (uint64_t)cy * kPrimeY,
+            (uint64_t)cz * kPrimeZ, (uint64_t)cw * kPrimeW
         };
     }
 
@@ -887,7 +893,7 @@ static const Lookup4DTable& lookup4D()
     return kLUT;
 }
 
-static double noise4_base(long long seed, double xs, double ys, double zs, double ws)
+static double noise4_base(uint64_t seed, double xs, double ys, double zs, double ws)
 {
     // Base cell in skewed space
     const int xsb = fastFloor(xs), ysb = fastFloor(ys);
@@ -901,10 +907,10 @@ static double noise4_base(long long seed, double xs, double ys, double zs, doubl
     const double zi = zsi + ssi, wi = wsi + ssi;
 
     // Prime-multiplied coordinates for hashing
-    const long long xsvp = (long long)xsb * kPrimeX;
-    const long long ysvp = (long long)ysb * kPrimeY;
-    const long long zsvp = (long long)zsb * kPrimeZ;
-    const long long wsvp = (long long)wsb * kPrimeW;
+    const uint64_t xsvp = (uint64_t)xsb * kPrimeX;
+    const uint64_t ysvp = (uint64_t)ysb * kPrimeY;
+    const uint64_t zsvp = (uint64_t)zsb * kPrimeZ;
+    const uint64_t wsvp = (uint64_t)wsb * kPrimeW;
 
     // 8-bit index from the sub-cell position selects which vertex set to evaluate
     const int index =
@@ -938,7 +944,7 @@ static double noise4_base(long long seed, double xs, double ys, double zs, doubl
 // Computes the gradient (ddx, ddy) of the 2D noise at (xd, yd).
 // A2* Jacobian = I so input-space and displacement-space derivatives are identical;
 // no chain-rule correction is needed.
-static void noise2_withGrad(long long seed, double xd, double yd,
+static void noise2_withGrad(uint64_t seed, double xd, double yd,
                              double& ddx, double& ddy)
 {
     // Skew input to triangular lattice
@@ -950,8 +956,8 @@ static void noise2_withGrad(long long seed, double xd, double yd,
     const double xi = xs - xsb, yi = ys - ysb;
 
     // Prime-multiplied coordinates for hashing
-    const long long xsbp = (long long)xsb * kPrimeX;
-    const long long ysbp = (long long)ysb * kPrimeY;
+    const uint64_t xsbp = (uint64_t)xsb * kPrimeX;
+    const uint64_t ysbp = (uint64_t)ysb * kPrimeY;
 
     // Unskew to get displacements to vertex (0,0)
     const double t   = (xi + yi) * kUnskew2D;
@@ -966,10 +972,7 @@ static void noise2_withGrad(long long seed, double xd, double yd,
 
     // Vertex (0,0): always contributes
     {
-        long long hash  = seed ^ xsbp ^ ysbp;
-        hash *= kHashMultiplier;
-        hash ^= (long long)((unsigned long long)hash >> 58);
-        const int gi    = (int)hash & 254;
+        const int gi = grad2Idx(seed, xsbp, ysbp);
         const double gx = kGrad2Table[gi], gy = kGrad2Table[gi + 1];
         const double ex = gx * dx0 + gy * dy0;
         const double a2 = a0 * a0;
@@ -981,10 +984,7 @@ static void noise2_withGrad(long long seed, double xd, double yd,
     {
         const double a  = kA1coeff2D * t + (kA1base2D + a0);
         const double dx = dx0 - kD2D, dy = dy0 - kD2D;
-        long long hash  = seed ^ (xsbp + kPrimeX) ^ (ysbp + kPrimeY);
-        hash *= kHashMultiplier;
-        hash ^= (long long)((unsigned long long)hash >> 58);
-        const int gi    = (int)hash & 254;
+        const int gi = grad2Idx(seed, xsbp + kPrimeX, ysbp + kPrimeY);
         const double gx = kGrad2Table[gi], gy = kGrad2Table[gi + 1];
         const double ex = gx * dx + gy * dy;
         const double a2 = a * a;
@@ -1000,10 +1000,7 @@ static void noise2_withGrad(long long seed, double xd, double yd,
             const double dy = dy0 - (3.0 * kUnskew2D + 1.0);
             const double a  = kRsq2D - dx * dx - dy * dy;
             if (a > 0.0) {
-                long long hash  = seed ^ (xsbp + kPrimeX2) ^ (ysbp + kPrimeY);
-                hash *= kHashMultiplier;
-                hash ^= (long long)((unsigned long long)hash >> 58);
-                const int gi    = (int)hash & 254;
+                const int gi = grad2Idx(seed, xsbp + kPrimeX2, ysbp + kPrimeY);
                 const double gx = kGrad2Table[gi], gy = kGrad2Table[gi + 1];
                 const double ex = gx * dx + gy * dy;
                 const double a2 = a * a;
@@ -1015,10 +1012,7 @@ static void noise2_withGrad(long long seed, double xd, double yd,
             const double dy = dy0 - (kUnskew2D + 1.0);
             const double a  = kRsq2D - dx * dx - dy * dy;
             if (a > 0.0) {
-                long long hash  = seed ^ xsbp ^ (ysbp + kPrimeY);
-                hash *= kHashMultiplier;
-                hash ^= (long long)((unsigned long long)hash >> 58);
-                const int gi    = (int)hash & 254;
+                const int gi = grad2Idx(seed, xsbp, ysbp + kPrimeY);
                 const double gx = kGrad2Table[gi], gy = kGrad2Table[gi + 1];
                 const double ex = gx * dx + gy * dy;
                 const double a2 = a * a;
@@ -1031,10 +1025,7 @@ static void noise2_withGrad(long long seed, double xd, double yd,
             const double dy = dy0 - (3.0 * kUnskew2D + 2.0);
             const double a  = kRsq2D - dx * dx - dy * dy;
             if (a > 0.0) {
-                long long hash  = seed ^ (xsbp + kPrimeX) ^ (ysbp + kPrimeY2);
-                hash *= kHashMultiplier;
-                hash ^= (long long)((unsigned long long)hash >> 58);
-                const int gi    = (int)hash & 254;
+                const int gi = grad2Idx(seed, xsbp + kPrimeX, ysbp + kPrimeY2);
                 const double gx = kGrad2Table[gi], gy = kGrad2Table[gi + 1];
                 const double ex = gx * dx + gy * dy;
                 const double a2 = a * a;
@@ -1046,10 +1037,7 @@ static void noise2_withGrad(long long seed, double xd, double yd,
             const double dy = dy0 - kUnskew2D;
             const double a  = kRsq2D - dx * dx - dy * dy;
             if (a > 0.0) {
-                long long hash  = seed ^ (xsbp + kPrimeX) ^ ysbp;
-                hash *= kHashMultiplier;
-                hash ^= (long long)((unsigned long long)hash >> 58);
-                const int gi    = (int)hash & 254;
+                const int gi = grad2Idx(seed, xsbp + kPrimeX, ysbp);
                 const double gx = kGrad2Table[gi], gy = kGrad2Table[gi + 1];
                 const double ex = gx * dx + gy * dy;
                 const double a2 = a * a;
@@ -1063,10 +1051,7 @@ static void noise2_withGrad(long long seed, double xd, double yd,
             const double dy = dy0 + kUnskew2D;
             const double a  = kRsq2D - dx * dx - dy * dy;
             if (a > 0.0) {
-                long long hash  = seed ^ (xsbp - kPrimeX) ^ ysbp;
-                hash *= kHashMultiplier;
-                hash ^= (long long)((unsigned long long)hash >> 58);
-                const int gi    = (int)hash & 254;
+                const int gi = grad2Idx(seed, xsbp - kPrimeX, ysbp);
                 const double gx = kGrad2Table[gi], gy = kGrad2Table[gi + 1];
                 const double ex = gx * dx + gy * dy;
                 const double a2 = a * a;
@@ -1078,10 +1063,7 @@ static void noise2_withGrad(long long seed, double xd, double yd,
             const double dy = dy0 - kUnskew2D;
             const double a  = kRsq2D - dx * dx - dy * dy;
             if (a > 0.0) {
-                long long hash  = seed ^ (xsbp + kPrimeX) ^ ysbp;
-                hash *= kHashMultiplier;
-                hash ^= (long long)((unsigned long long)hash >> 58);
-                const int gi    = (int)hash & 254;
+                const int gi = grad2Idx(seed, xsbp + kPrimeX, ysbp);
                 const double gx = kGrad2Table[gi], gy = kGrad2Table[gi + 1];
                 const double ex = gx * dx + gy * dy;
                 const double a2 = a * a;
@@ -1094,10 +1076,7 @@ static void noise2_withGrad(long long seed, double xd, double yd,
             const double dy = dy0 + (kUnskew2D + 1.0);
             const double a  = kRsq2D - dx * dx - dy * dy;
             if (a > 0.0) {
-                long long hash  = seed ^ xsbp ^ (ysbp - kPrimeY);
-                hash *= kHashMultiplier;
-                hash ^= (long long)((unsigned long long)hash >> 58);
-                const int gi    = (int)hash & 254;
+                const int gi = grad2Idx(seed, xsbp, ysbp - kPrimeY);
                 const double gx = kGrad2Table[gi], gy = kGrad2Table[gi + 1];
                 const double ex = gx * dx + gy * dy;
                 const double a2 = a * a;
@@ -1109,10 +1088,7 @@ static void noise2_withGrad(long long seed, double xd, double yd,
             const double dy = dy0 - (kUnskew2D + 1.0);
             const double a  = kRsq2D - dx * dx - dy * dy;
             if (a > 0.0) {
-                long long hash  = seed ^ xsbp ^ (ysbp + kPrimeY);
-                hash *= kHashMultiplier;
-                hash ^= (long long)((unsigned long long)hash >> 58);
-                const int gi    = (int)hash & 254;
+                const int gi = grad2Idx(seed, xsbp, ysbp + kPrimeY);
                 const double gx = kGrad2Table[gi], gy = kGrad2Table[gi + 1];
                 const double ex = gx * dx + gy * dy;
                 const double a2 = a * a;
@@ -1127,7 +1103,7 @@ static void noise2_withGrad(long long seed, double xd, double yd,
 
 template <typename T>
 OpenSimplex2S<T>::OpenSimplex2S(long long seed)
-    : seed_(seed)
+    : seed_((uint64_t)seed)
 {
 }
 
@@ -1145,8 +1121,8 @@ T OpenSimplex2S<T>::noise(T x, T y) const
     const double xi = xs - xsb, yi = ys - ysb;
 
     // Prime-multiplied coordinates for hashing
-    const long long xsbp = (long long)xsb * kPrimeX;
-    const long long ysbp = (long long)ysb * kPrimeY;
+    const uint64_t xsbp = (uint64_t)xsb * kPrimeX;
+    const uint64_t ysbp = (uint64_t)ysb * kPrimeY;
 
     // Unskew to get displacements to vertex (0,0)
     const double t   = (xi + yi) * kUnskew2D;

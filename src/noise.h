@@ -11,6 +11,7 @@
 #define CORTEX_NOISE_H
 
 #include <cstddef>
+#include <cstdint>
 
 /**
  * @brief OpenSimplex2S (Smooth) gradient noise.
@@ -183,7 +184,7 @@ struct OpenSimplex2S
 	) const;
 
 private:
-	long long seed_;
+	uint64_t seed_;
 };
 
 #include "noise.tcc"
