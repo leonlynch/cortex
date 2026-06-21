@@ -17,7 +17,8 @@
 static void test_range_2d()
 {
 	OpenSimplex2S<double> n(12345);
-	double vmin = 1.0, vmax = -1.0;
+	double vmin = 1.0;
+	double vmax = -1.0;
 	for (int y = 0; y < 64; ++y) {
 		for (int x = 0; x < 64; ++x) {
 			double v = n.noise(x * 0.1, y * 0.1);
@@ -36,7 +37,8 @@ static void test_range_2d()
 static void test_range_3d()
 {
 	OpenSimplex2S<double> n(12345);
-	double vmin = 1.0, vmax = -1.0;
+	double vmin = 1.0;
+	double vmax = -1.0;
 	for (int z = 0; z < 16; ++z) {
 		for (int y = 0; y < 16; ++y) {
 			for (int x = 0; x < 16; ++x) {
@@ -68,7 +70,8 @@ static void test_reproducibility()
 static void test_range_3d_yup()
 {
 	OpenSimplex2S<double> n(12345);
-	double vmin = 1.0, vmax = -1.0;
+	double vmin = 1.0;
+	double vmax = -1.0;
 	for (int z = 0; z < 16; ++z) {
 		for (int y = 0; y < 16; ++y) {
 			for (int x = 0; x < 16; ++x) {
@@ -115,7 +118,8 @@ static void test_continuity_2d()
 	OpenSimplex2S<double> n(7777);
 	static const int N = 10000;
 	static const double H = 0.001;
-	double max_d1 = 0.0, max_d2 = 0.0;
+	double max_d1 = 0.0;
+	double max_d2 = 0.0;
 	double prev = n.noise(0.0, 0.0);
 	double prev_d1 = n.noise(H, 0.0) - prev;
 	for (int i = 1; i < N - 1; ++i) {
@@ -140,7 +144,8 @@ static void test_continuity_2d()
 static void test_fill_range()
 {
 	OpenSimplex2S<double> n(555);
-	static const std::size_t W = 32, H = 32;
+	static const std::size_t W = 32;
+	static const std::size_t H = 32;
 	std::vector<double> buf(W * H);
 	n.fill(buf.data(), W, H, 0.05, 0.05);
 	for (double v : buf) {
@@ -149,10 +154,25 @@ static void test_fill_range()
 	std::printf("fill() range: OK\n");
 }
 
+static void test_fill_volume_range()
+{
+	OpenSimplex2S<double> n(555);
+	static const std::size_t W = 16;
+	static const std::size_t H = 16;
+	static const std::size_t D = 8;
+	std::vector<double> buf(W * H * D);
+	n.fill(buf.data(), W, H, D, 0.05, 0.05, 0.05);
+	for (double v : buf) {
+		assert(v >= 0.0 && v <= 1.0);
+	}
+	std::printf("fill() volume range: OK\n");
+}
+
 static void test_range_4d()
 {
 	OpenSimplex2S<double> n(12345);
-	double vmin = 1.0, vmax = -1.0;
+	double vmin = 1.0;
+	double vmax = -1.0;
 	for (int w = 0; w < 4; ++w) {
 		for (int z = 0; z < 8; ++z) {
 			for (int y = 0; y < 8; ++y) {
@@ -175,7 +195,8 @@ static void test_range_4d()
 static void test_range_4d_yup()
 {
 	OpenSimplex2S<double> n(12345);
-	double vmin = 1.0, vmax = -1.0;
+	double vmin = 1.0;
+	double vmax = -1.0;
 	for (int w = 0; w < 4; ++w) {
 		for (int z = 0; z < 8; ++z) {
 			for (int y = 0; y < 8; ++y) {
@@ -252,7 +273,9 @@ static void test_normals_unit_length()
 	std::vector<double> buf(3 * W * H);
 	n.fillNormals(buf.data(), W, H, 0.1, 0.1);
 	for (int i = 0; i < W * H; ++i) {
-		const double nx = buf[3*i], ny = buf[3*i+1], nz = buf[3*i+2];
+		const double nx = buf[3*i];
+		const double ny = buf[3*i+1];
+		const double nz = buf[3*i+2];
 		const double len = std::sqrt(nx*nx + ny*ny + nz*nz);
 		assert(std::fabs(len - 1.0) < 1e-12);
 		assert(nz > 0.0);
@@ -391,7 +414,8 @@ static void print_ascii_2d()
 	static const char kRamp[] = " .:-=+*#%@";
 	static const int kRampLen = 10;
 	OpenSimplex2S<double> n(12345);
-	static const int W = 64, H = 32;
+	static const int W = 64;
+	static const int H = 32;
 	std::printf("\n2D noise (64x32):\n");
 	for (int row = 0; row < H; ++row) {
 		for (int col = 0; col < W; ++col) {
@@ -419,6 +443,7 @@ int main(void)
 	test_float_instantiation();
 	test_continuity_2d();
 	test_fill_range();
+	test_fill_volume_range();
 	test_range_4d();
 	test_range_4d_yup();
 	test_reproducibility_4d();

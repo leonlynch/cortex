@@ -196,8 +196,12 @@ inline int fastFloor(double x)
 static double noise3_base(uint64_t seed, double xr, double yr, double zr)
 {
     // Base cell in rotated space
-    const int xrb = fastFloor(xr), yrb = fastFloor(yr), zrb = fastFloor(zr);
-    const double xi = xr - xrb, yi = yr - yrb, zi = zr - zrb;
+    const int xrb = fastFloor(xr);
+    const int yrb = fastFloor(yr);
+    const int zrb = fastFloor(zr);
+    const double xi = xr - xrb;
+    const double yi = yr - yrb;
+    const double zi = zr - zrb;
 
     // Prime-multiplied coordinates; second seed for body-centre BCC sublattice
     const uint64_t xrbp  = (uint64_t)xrb * kPrimeX;
@@ -211,7 +215,9 @@ static double noise3_base(uint64_t seed, double xr, double yr, double zr)
     const int zNMask = (int)(-0.5 - zi);
 
     // First vertex: nearest corner of BCC sublattice 1 (always contributes)
-    const double x0 = xi + xNMask, y0 = yi + yNMask, z0 = zi + zNMask;
+    const double x0 = xi + xNMask;
+    const double y0 = yi + yNMask;
+    const double z0 = zi + zNMask;
     const double a0 = kRsq3D - x0 * x0 - y0 * y0 - z0 * z0;
     double value = (a0 * a0) * (a0 * a0) * grad3(seed,
         xrbp + ((uint64_t)xNMask & kPrimeX),
@@ -220,7 +226,9 @@ static double noise3_base(uint64_t seed, double xr, double yr, double zr)
         x0, y0, z0);
 
     // Second vertex: body centre of BCC sublattice 2 (always contributes)
-    const double x1 = xi - 0.5, y1 = yi - 0.5, z1 = zi - 0.5;
+    const double x1 = xi - 0.5;
+    const double y1 = yi - 0.5;
+    const double z1 = zi - 0.5;
     const double a1 = kRsq3D - x1 * x1 - y1 * y1 - z1 * z1;
     value += (a1 * a1) * (a1 * a1) * grad3(seed2,
         xrbp + kPrimeX, yrbp + kPrimeY, zrbp + kPrimeZ,
@@ -896,15 +904,21 @@ static const Lookup4DTable& lookup4D()
 static double noise4_base(uint64_t seed, double xs, double ys, double zs, double ws)
 {
     // Base cell in skewed space
-    const int xsb = fastFloor(xs), ysb = fastFloor(ys);
-    const int zsb = fastFloor(zs), wsb = fastFloor(ws);
-    const double xsi = xs - xsb, ysi = ys - ysb;
-    const double zsi = zs - zsb, wsi = ws - wsb;
+    const int xsb = fastFloor(xs);
+    const int ysb = fastFloor(ys);
+    const int zsb = fastFloor(zs);
+    const int wsb = fastFloor(ws);
+    const double xsi = xs - xsb;
+    const double ysi = ys - ysb;
+    const double zsi = zs - zsb;
+    const double wsi = ws - wsb;
 
     // Unskew to get displacements from the base corner
     const double ssi = (xsi + ysi + zsi + wsi) * kUnskew4D;
-    const double xi = xsi + ssi, yi = ysi + ssi;
-    const double zi = zsi + ssi, wi = wsi + ssi;
+    const double xi = xsi + ssi;
+    const double yi = ysi + ssi;
+    const double zi = zsi + ssi;
+    const double wi = wsi + ssi;
 
     // Prime-multiplied coordinates for hashing
     const uint64_t xsvp = (uint64_t)xsb * kPrimeX;
@@ -923,11 +937,13 @@ static double noise4_base(uint64_t seed, double xs, double ys, double zs, double
     const Lookup4DTable& lut = lookup4D();
     const int sas   = lut.a[index];
     const int start = sas & 0xFFFF;
-    const int stop  = sas >> 16;
+    const int stop  = (int)((unsigned)sas >> 16);
     for (int i = start; i < stop; ++i) {
         const LatticeVertex4D& c = lut.b[i];
-        const double dx = xi + c.dx, dy = yi + c.dy;
-        const double dz = zi + c.dz, dw = wi + c.dw;
+        const double dx = xi + c.dx;
+        const double dy = yi + c.dy;
+        const double dz = zi + c.dz;
+        const double dw = wi + c.dw;
         const double a = (dx * dx + dy * dy) + (dz * dz + dw * dw);
         if (a < kRsq4D) {
             const double at = a - kRsq4D;
@@ -949,11 +965,14 @@ static void noise2_withGrad(uint64_t seed, double xd, double yd,
 {
     // Skew input to triangular lattice
     const double s  = kSkew2D * (xd + yd);
-    const double xs = xd + s, ys = yd + s;
+    const double xs = xd + s;
+    const double ys = yd + s;
 
-    // Base cell
-    const int xsb = fastFloor(xs), ysb = fastFloor(ys);
-    const double xi = xs - xsb, yi = ys - ysb;
+    // Base cell in skewed space
+    const int xsb = fastFloor(xs);
+    const int ysb = fastFloor(ys);
+    const double xi = xs - xsb;
+    const double yi = ys - ysb;
 
     // Prime-multiplied coordinates for hashing
     const uint64_t xsbp = (uint64_t)xsb * kPrimeX;
@@ -961,7 +980,8 @@ static void noise2_withGrad(uint64_t seed, double xd, double yd,
 
     // Unskew to get displacements to vertex (0,0)
     const double t   = (xi + yi) * kUnskew2D;
-    const double dx0 = xi + t, dy0 = yi + t;
+    const double dx0 = xi + t;
+    const double dy0 = yi + t;
 
     const double a0 = kRsq2D - dx0 * dx0 - dy0 * dy0;
 
@@ -973,7 +993,8 @@ static void noise2_withGrad(uint64_t seed, double xd, double yd,
     // Vertex (0,0): always contributes
     {
         const int gi = grad2Idx(seed, xsbp, ysbp);
-        const double gx = kGrad2Table[gi], gy = kGrad2Table[gi + 1];
+        const double gx = kGrad2Table[gi];
+        const double gy = kGrad2Table[gi + 1];
         const double ex = gx * dx0 + gy * dy0;
         const double a2 = a0 * a0;
         ddx += a2 * (-8.0 * dx0 * a0 * ex + a2 * gx);
@@ -983,9 +1004,11 @@ static void noise2_withGrad(uint64_t seed, double xd, double yd,
     // Vertex (1,1): always contributes; falloff derived algebraically
     {
         const double a  = kA1coeff2D * t + (kA1base2D + a0);
-        const double dx = dx0 - kD2D, dy = dy0 - kD2D;
+        const double dx = dx0 - kD2D;
+        const double dy = dy0 - kD2D;
         const int gi = grad2Idx(seed, xsbp + kPrimeX, ysbp + kPrimeY);
-        const double gx = kGrad2Table[gi], gy = kGrad2Table[gi + 1];
+        const double gx = kGrad2Table[gi];
+        const double gy = kGrad2Table[gi + 1];
         const double ex = gx * dx + gy * dy;
         const double a2 = a * a;
         ddx += a2 * (-8.0 * dx * a * ex + a2 * gx);
@@ -1001,7 +1024,8 @@ static void noise2_withGrad(uint64_t seed, double xd, double yd,
             const double a  = kRsq2D - dx * dx - dy * dy;
             if (a > 0.0) {
                 const int gi = grad2Idx(seed, xsbp + kPrimeX2, ysbp + kPrimeY);
-                const double gx = kGrad2Table[gi], gy = kGrad2Table[gi + 1];
+                const double gx = kGrad2Table[gi];
+                const double gy = kGrad2Table[gi + 1];
                 const double ex = gx * dx + gy * dy;
                 const double a2 = a * a;
                 ddx += a2 * (-8.0 * dx * a * ex + a2 * gx);
@@ -1013,7 +1037,8 @@ static void noise2_withGrad(uint64_t seed, double xd, double yd,
             const double a  = kRsq2D - dx * dx - dy * dy;
             if (a > 0.0) {
                 const int gi = grad2Idx(seed, xsbp, ysbp + kPrimeY);
-                const double gx = kGrad2Table[gi], gy = kGrad2Table[gi + 1];
+                const double gx = kGrad2Table[gi];
+                const double gy = kGrad2Table[gi + 1];
                 const double ex = gx * dx + gy * dy;
                 const double a2 = a * a;
                 ddx += a2 * (-8.0 * dx * a * ex + a2 * gx);
@@ -1026,7 +1051,8 @@ static void noise2_withGrad(uint64_t seed, double xd, double yd,
             const double a  = kRsq2D - dx * dx - dy * dy;
             if (a > 0.0) {
                 const int gi = grad2Idx(seed, xsbp + kPrimeX, ysbp + kPrimeY2);
-                const double gx = kGrad2Table[gi], gy = kGrad2Table[gi + 1];
+                const double gx = kGrad2Table[gi];
+                const double gy = kGrad2Table[gi + 1];
                 const double ex = gx * dx + gy * dy;
                 const double a2 = a * a;
                 ddx += a2 * (-8.0 * dx * a * ex + a2 * gx);
@@ -1038,7 +1064,8 @@ static void noise2_withGrad(uint64_t seed, double xd, double yd,
             const double a  = kRsq2D - dx * dx - dy * dy;
             if (a > 0.0) {
                 const int gi = grad2Idx(seed, xsbp + kPrimeX, ysbp);
-                const double gx = kGrad2Table[gi], gy = kGrad2Table[gi + 1];
+                const double gx = kGrad2Table[gi];
+                const double gy = kGrad2Table[gi + 1];
                 const double ex = gx * dx + gy * dy;
                 const double a2 = a * a;
                 ddx += a2 * (-8.0 * dx * a * ex + a2 * gx);
@@ -1052,7 +1079,8 @@ static void noise2_withGrad(uint64_t seed, double xd, double yd,
             const double a  = kRsq2D - dx * dx - dy * dy;
             if (a > 0.0) {
                 const int gi = grad2Idx(seed, xsbp - kPrimeX, ysbp);
-                const double gx = kGrad2Table[gi], gy = kGrad2Table[gi + 1];
+                const double gx = kGrad2Table[gi];
+                const double gy = kGrad2Table[gi + 1];
                 const double ex = gx * dx + gy * dy;
                 const double a2 = a * a;
                 ddx += a2 * (-8.0 * dx * a * ex + a2 * gx);
@@ -1064,7 +1092,8 @@ static void noise2_withGrad(uint64_t seed, double xd, double yd,
             const double a  = kRsq2D - dx * dx - dy * dy;
             if (a > 0.0) {
                 const int gi = grad2Idx(seed, xsbp + kPrimeX, ysbp);
-                const double gx = kGrad2Table[gi], gy = kGrad2Table[gi + 1];
+                const double gx = kGrad2Table[gi];
+                const double gy = kGrad2Table[gi + 1];
                 const double ex = gx * dx + gy * dy;
                 const double a2 = a * a;
                 ddx += a2 * (-8.0 * dx * a * ex + a2 * gx);
@@ -1077,7 +1106,8 @@ static void noise2_withGrad(uint64_t seed, double xd, double yd,
             const double a  = kRsq2D - dx * dx - dy * dy;
             if (a > 0.0) {
                 const int gi = grad2Idx(seed, xsbp, ysbp - kPrimeY);
-                const double gx = kGrad2Table[gi], gy = kGrad2Table[gi + 1];
+                const double gx = kGrad2Table[gi];
+                const double gy = kGrad2Table[gi + 1];
                 const double ex = gx * dx + gy * dy;
                 const double a2 = a * a;
                 ddx += a2 * (-8.0 * dx * a * ex + a2 * gx);
@@ -1089,7 +1119,8 @@ static void noise2_withGrad(uint64_t seed, double xd, double yd,
             const double a  = kRsq2D - dx * dx - dy * dy;
             if (a > 0.0) {
                 const int gi = grad2Idx(seed, xsbp, ysbp + kPrimeY);
-                const double gx = kGrad2Table[gi], gy = kGrad2Table[gi + 1];
+                const double gx = kGrad2Table[gi];
+                const double gy = kGrad2Table[gi + 1];
                 const double ex = gx * dx + gy * dy;
                 const double a2 = a * a;
                 ddx += a2 * (-8.0 * dx * a * ex + a2 * gx);
@@ -1110,15 +1141,19 @@ OpenSimplex2S<T>::OpenSimplex2S(long long seed)
 template <typename T>
 T OpenSimplex2S<T>::noise(T x, T y) const
 {
-    const double xd = x, yd = y;
+    const double xd = x;
+    const double yd = y;
 
     // Skew input to triangular lattice
     const double s  = kSkew2D * (xd + yd);
-    const double xs = xd + s, ys = yd + s;
+    const double xs = xd + s;
+    const double ys = yd + s;
 
-    // Base cell
-    const int xsb = fastFloor(xs), ysb = fastFloor(ys);
-    const double xi = xs - xsb, yi = ys - ysb;
+    // Base cell in skewed space
+    const int xsb = fastFloor(xs);
+    const int ysb = fastFloor(ys);
+    const double xi = xs - xsb;
+    const double yi = ys - ysb;
 
     // Prime-multiplied coordinates for hashing
     const uint64_t xsbp = (uint64_t)xsb * kPrimeX;
@@ -1126,7 +1161,8 @@ T OpenSimplex2S<T>::noise(T x, T y) const
 
     // Unskew to get displacements to vertex (0,0)
     const double t   = (xi + yi) * kUnskew2D;
-    const double dx0 = xi + t, dy0 = yi + t;
+    const double dx0 = xi + t;
+    const double dy0 = yi + t;
 
     // Vertex (0,0): always contributes (a0 >= 0 for all xi,yi in [0,1))
     const double a0 = kRsq2D - dx0 * dx0 - dy0 * dy0;
@@ -1134,7 +1170,8 @@ T OpenSimplex2S<T>::noise(T x, T y) const
 
     // Vertex (1,1): always contributes; falloff derived algebraically from a0 and t
     const double a1  = kA1coeff2D * t + (kA1base2D + a0);
-    const double dx1 = dx0 - kD2D, dy1 = dy0 - kD2D;
+    const double dx1 = dx0 - kD2D;
+    const double dy1 = dy0 - kD2D;
     value += (a1 * a1) * (a1 * a1) * grad2(seed_, xsbp + kPrimeX, ysbp + kPrimeY, dx1, dy1);
 
     // Two conditional extra vertices selected based on which simplex half we're in
@@ -1210,7 +1247,9 @@ template <typename T>
 T OpenSimplex2S<T>::noise(T x, T y, T z) const
 {
     // ImproveXY: Z is the "special" axis, XY is the isotropic plane
-    const double xd = x, yd = y, zd = z;
+    const double xd = x;
+    const double yd = y;
+    const double zd = z;
     const double xy = xd + yd;
     const double s2 = xy * kRotOrtho;
     const double zz = zd * kRoot3Over3;
@@ -1224,7 +1263,9 @@ template <typename T>
 T OpenSimplex2S<T>::noiseYUp(T x, T y, T z) const
 {
     // ImproveXZ: Y is the "special" axis, XZ is the isotropic plane
-    const double xd = x, yd = y, zd = z;
+    const double xd = x;
+    const double yd = y;
+    const double zd = z;
     const double xz = xd + zd;
     const double s2 = xz * kRotOrtho;
     const double yy = yd * kRoot3Over3;
@@ -1238,7 +1279,10 @@ template <typename T>
 T OpenSimplex2S<T>::noise(T x, T y, T z, T w) const
 {
     // ImproveXY_ImproveZW: XY and ZW are orthogonal isotropic planes
-    const double xd = x, yd = y, zd = z, wd = w;
+    const double xd = x;
+    const double yd = y;
+    const double zd = z;
+    const double wd = w;
     const double s2 = (xd + yd) * kRot4XY + (zd + wd) * kRot4ZWtoXY;
     const double t2 = (zd + wd) * kRot4ZW + (xd + yd) * kRot4XYtoZW;
     return static_cast<T>(noise4_base(seed_, xd + s2, yd + s2, zd + t2, wd + t2));
@@ -1248,7 +1292,10 @@ template <typename T>
 T OpenSimplex2S<T>::noiseYUp(T x, T y, T z, T w) const
 {
     // ImproveXYZ_ImproveXZ: XZ is the isotropic horizontal plane (Y-up), W is time
-    const double xd = x, yd = y, zd = z, wd = w;
+    const double xd = x;
+    const double yd = y;
+    const double zd = z;
+    const double wd = w;
     const double xz = xd + zd;
     const double s2 = xz * kRotOrtho;
     const double yy = yd * kRot4YupY;
@@ -1265,9 +1312,9 @@ void OpenSimplex2S<T>::fill(T* data, std::size_t width, std::size_t height,
                             T scale_x, T scale_y) const
 {
     for (std::size_t row = 0; row < height; ++row) {
+        const T ry = static_cast<T>(row) * scale_y;
         for (std::size_t col = 0; col < width; ++col) {
-            const T v = noise(static_cast<T>(col) * scale_x,
-                              static_cast<T>(row) * scale_y);
+            const T v = noise(static_cast<T>(col) * scale_x, ry);
             data[row * width + col] = v * T(0.5) + T(0.5);
         }
     }
@@ -1278,12 +1325,13 @@ void OpenSimplex2S<T>::fill(T* data, std::size_t width, std::size_t height, std:
                             T scale_x, T scale_y, T scale_z) const
 {
     for (std::size_t layer = 0; layer < depth; ++layer) {
+        const T lz = static_cast<T>(layer) * scale_z;
         for (std::size_t row = 0; row < height; ++row) {
+            const T ry = static_cast<T>(row) * scale_y;
+            const std::size_t base = (layer * height + row) * width;
             for (std::size_t col = 0; col < width; ++col) {
-                const T v = noise(static_cast<T>(col) * scale_x,
-                                  static_cast<T>(row) * scale_y,
-                                  static_cast<T>(layer) * scale_z);
-                data[(layer * height + row) * width + col] = v * T(0.5) + T(0.5);
+                const T v = noise(static_cast<T>(col) * scale_x, ry, lz);
+                data[base + col] = v * T(0.5) + T(0.5);
             }
         }
     }
@@ -1294,13 +1342,17 @@ void OpenSimplex2S<T>::fillNormals(T* data, std::size_t width, std::size_t heigh
                                    T scale_x, T scale_y) const
 {
     for (std::size_t row = 0; row < height; ++row) {
+        const double ry = static_cast<double>(row) * scale_y;
         for (std::size_t col = 0; col < width; ++col) {
-            double ddx, ddy;
+            double ddx;
+            double ddy;
             noise2_withGrad(seed_,
                             static_cast<double>(col) * scale_x,
-                            static_cast<double>(row) * scale_y,
+                            ry,
                             ddx, ddy);
-            double nx = -ddx, ny = -ddy, nz = 1.0;
+            const double nx = -ddx;
+            const double ny = -ddy;
+            const double nz = 1.0;
             const double len = std::sqrt(nx * nx + ny * ny + nz * nz);
             const std::size_t idx = row * width + col;
             data[3 * idx + 0] = static_cast<T>(nx / len);
